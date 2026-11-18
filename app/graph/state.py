@@ -22,6 +22,8 @@ class ChatState(TypedDict, total=False):
     retrieved_chunks: List[Dict[str, Any]]
     relevance_score: float
     is_relevant: bool
+    needs_live_search: Optional[bool]
+    live_searched_urls: Optional[List[str]]
 
     # Generation & output
     answer: str

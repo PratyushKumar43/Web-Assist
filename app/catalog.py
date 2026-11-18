@@ -56,8 +56,15 @@ def extract_product_from_page(page_url: str, title: str, markdown: str) -> Optio
         # Clean title (strip ' | Emirates NBD')
         product_name = title.split("|")[0].strip()
 
-    # Skip generic error or campaign landing pages without a specific product
-    if product_name.lower() in ["something went wrong", "contact us", "personal banking"]:
+    # Skip generic error, support, contact, or career landing pages without a specific product
+    url_lower = page_url.lower()
+    name_lower = product_name.lower()
+    excluded_keywords = [
+        "contact", "career", "life-at", "employee engagement", "would you like to talk",
+        "something went wrong", "personal banking", "terms-and-conditions", "privacy",
+        "help-and-support/contact-us", "feedback", "complaints",
+    ]
+    if any(k in url_lower or k in name_lower for k in excluded_keywords):
         return None
 
     category = classify_category(page_url, product_name)

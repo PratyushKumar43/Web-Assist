@@ -53,6 +53,17 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
     catalog = load_catalog_data()
     known_products = [p["name"] for p in catalog]
 
+    # If the user is asking a broad question about what the bank provides/offers
+    broad_inquiry_patterns = [
+        r"\bwhat\s+(?:products|cards|accounts|services)\b",
+        r"\bwhat\s+.*(?:providing|provide|offer|have)\b",
+        r"\bwhich\s+(?:products|cards|accounts)\b",
+    ]
+    if any(re.search(p, raw_query, re.IGNORECASE) for p in broad_inquiry_patterns):
+        resolved = pronoun_pattern.sub("Emirates NBD", raw_query, count=1)
+        logger.info("Broad query rewrote pronoun to bank: '%s' -> '%s'", raw_query, resolved)
+        return {"standalone_query": resolved}
+
     last_subject: Optional[str] = None
     for msg in reversed(messages):
         content = msg.get("content", "")
@@ -167,9 +178,10 @@ def router_node(state: ChatState) -> Dict[str, Any]:
         "what cards", "all credit cards", "list of accounts", "what options",
         "show products", "what accounts can i open", "account options",
         "recommend a card", "options for business", "savings options", "browse",
+        "what products", "what is it providing", "what does it provide", "providing", "what services", "all products",
     ]
     is_discovery = any(t in query_lower for t in discovery_triggers) or bool(
-        re.search(r"\b(?:what|which|all|list|show)\b.*(?:cards?|accounts?|loans?|products?|options?).*\b(?:available|offered|have|exist|open|apply|get)\b", query_lower)
+        re.search(r"\b(?:what|which|all|list|show)\b.*(?:cards?|accounts?|loans?|products?|options?|services?).*\b(?:available|offered|have|exist|open|apply|get|providing|provide)\b", query_lower)
         or re.search(r"\bavailable\s+(?:credit\s+)?cards?\b", query_lower)
     )
     if is_discovery:
@@ -218,6 +230,16 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
         retrieved_chunks = await loop.run_in_executor(
             None, indexer.hybrid_search, standalone_query, settings.TOP_K
         )
+        catalog = load_catalog_data()
+        for prod in catalog:
+            if not any(prod["name"].lower() in c.get("product_name", "").lower() for c in retrieved_chunks):
+                retrieved_chunks.append({
+                    "chunk_id": f"catalog_{prod['product_id']}",
+                    "text": f"Product: {prod['name']}\nCategory: {prod['category']}\nSummary: {prod.get('summary', '')}\nAnnual Fee: {prod.get('annual_fee') or 'None/Not Specified'}\nJoining Fee: {prod.get('joining_fee') or 'None/Not Specified'}\nRequirements: {prod.get('min_requirement') or 'N/A'}",
+                    "product_name": prod["name"],
+                    "url": prod["url"],
+                    "score": 0.85,
+                })
 
     else:
         loop = asyncio.get_event_loop()
@@ -245,18 +267,34 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
 # -----------------------------------------------------------------------------
 
 def grade_relevance_node(state: ChatState) -> Dict[str, Any]:
-    """Gate response generation based on retrieval quality and score threshold."""
+    """Gate response generation based on retrieval quality, entity presence, and score threshold."""
     retrieved_chunks = state.get("retrieved_chunks", [])
     score = state.get("relevance_score", 0.0)
     intent = state.get("intent", "FACT")
+    query = state.get("standalone_query", state.get("raw_query", ""))
 
     if not retrieved_chunks:
-        return {"is_relevant": False, "fallback_reason": "low_relevance"}
+        return {"is_relevant": False, "needs_live_search": True, "fallback_reason": "low_relevance"}
 
     # Must pass minimum RRF score gate
     if score < settings.MIN_RELEVANCE_SCORE:
-        logger.info("Retrieval score %.4f below threshold %.4f", score, settings.MIN_RELEVANCE_SCORE)
-        return {"is_relevant": False, "fallback_reason": "low_relevance"}
+        logger.info("Retrieval score %.4f below threshold %.4f. Requesting live search.", score, settings.MIN_RELEVANCE_SCORE)
+        return {"is_relevant": False, "needs_live_search": True, "fallback_reason": "low_relevance"}
+
+    # Check whether the query's core product/topic keywords actually appear in retrieved chunks
+    if intent in ["FACT", "COMPARISON"]:
+        stop_words = {
+            "what", "are", "is", "the", "about", "benefits", "features", "of", "for",
+            "in", "and", "emirates", "nbd", "bank", "tell", "me", "how", "does",
+            "work", "can", "you", "provide", "show", "give", "details",
+        }
+        query_tokens = [w.lower() for w in re.findall(r"\w+", query) if len(w) > 2 and w.lower() not in stop_words]
+        if query_tokens:
+            combined_text = " ".join(c.get("text", "") + " " + c.get("title", "") for c in retrieved_chunks).lower()
+            has_token_match = any(t in combined_text or t.rstrip("s") in combined_text for t in query_tokens)
+            if not has_token_match:
+                logger.info("Retrieved chunks lack query entity keywords %s. Requesting live site search.", query_tokens)
+                return {"is_relevant": False, "needs_live_search": True}
 
     # For comparison, verify both subjects have at least one context chunk
     if intent == "COMPARISON" and len(state.get("sub_queries", [])) >= 2:
@@ -267,7 +305,27 @@ def grade_relevance_node(state: ChatState) -> Dict[str, Any]:
         if not (has_a and has_b):
             logger.info("Comparison lacked bilateral coverage (has_a=%s, has_b=%s)", has_a, has_b)
 
-    return {"is_relevant": True}
+    return {"is_relevant": True, "needs_live_search": False}
+
+
+async def live_search_node(state: ChatState) -> Dict[str, Any]:
+    """Agentic Tool Node: search live website and ingest missing content on demand."""
+    from app.agent_tools import live_site_search_and_ingest
+    query = state.get("standalone_query", state.get("raw_query", ""))
+    logger.info("Live Search Node executing on-demand fetch for: '%s'", query)
+    fresh_chunks = await live_site_search_and_ingest(query)
+    if fresh_chunks:
+        return {
+            "retrieved_chunks": fresh_chunks,
+            "relevance_score": 1.0,
+            "is_relevant": True,
+            "needs_live_search": False,
+        }
+    return {
+        "is_relevant": False,
+        "needs_live_search": False,
+        "fallback_reason": "low_relevance",
+    }
 
 
 # -----------------------------------------------------------------------------
@@ -374,7 +432,7 @@ def deterministic_grounded_synthesis(
 
 
 async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
-    """Generate grounded answer using Gemini Flash or deterministic fallback."""
+    """Generate grounded answer using OpenRouter, Gemini Flash, or deterministic fallback."""
     query = state.get("standalone_query", state.get("raw_query", ""))
     chunks = state.get("retrieved_chunks", [])
     intent = state.get("intent", "FACT")
@@ -384,7 +442,73 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
         for c in chunks
     )
 
-    # 1. Attempt generation via Gemini Flash if API key is provided and valid
+    # 1. Attempt generation via OpenRouter API (supports openrouter/free)
+    if settings.OPENROUTER_API_KEY and not settings.OPENROUTER_API_KEY.startswith("<"):
+        try:
+            import httpx
+
+            headers = {
+                "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "http://localhost:8000",
+                "X-Title": "Web-Assist",
+            }
+            system_prompt = (
+                "You are the official Emirates NBD AI banking assistant. "
+                "Answer the user's question clearly, helpfully, and conversationally strictly based on the provided context chunks. "
+                "Do not extrapolate, guess, or invent fees, interest rates, or eligibility rules. "
+                "Format your answer cleanly with bullet points, fees, eligibility, and features where appropriate. "
+                "If the context does not contain sufficient information to answer the question, state politely that the information is not specified in current official Emirates NBD records."
+            )
+            user_prompt = f"""<retrieved_context>
+{context_str}
+</retrieved_context>
+
+<user_query>
+{query}
+</user_query>
+"""
+            payload = {
+                "model": settings.OPENROUTER_MODEL,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.2,
+            }
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    f"{settings.OPENROUTER_BASE_URL}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    choices = data.get("choices", [])
+                    if choices:
+                        ans_text = choices[0].get("message", {}).get("content", "").strip()
+                        # Clean any internal reasoning tokens if model enabled thinking
+                        ans_clean = re.sub(r"<think>.*?</think>", "", ans_text, flags=re.DOTALL).strip()
+                        if ans_clean:
+                            if verify_number_groundedness(ans_clean, context_str):
+                                matched_ids = [
+                                    c.get("chunk_id")
+                                    for c in chunks
+                                    if c.get("product_name") and c.get("product_name").lower() in ans_clean.lower()
+                                ]
+                                used_ids = matched_ids if matched_ids else [c.get("chunk_id") for c in chunks[:3] if c.get("chunk_id")]
+                                return {
+                                    "answer": ans_clean,
+                                    "used_chunk_ids": used_ids,
+                                    "answerable": True,
+                                    "guardrail_passed": True,
+                                }
+                            else:
+                                logger.warning("OpenRouter generated ungrounded numbers. Falling back to deterministic synthesis.")
+        except Exception as e:
+            logger.warning("OpenRouter API generation failed (%s). Continuing to fallback generators.", e)
+
+    # 2. Attempt generation via Gemini Flash if API key is provided and valid
     if settings.GEMINI_API_KEY and not settings.GEMINI_API_KEY.startswith("AIzaSy..."):
         try:
             from google import genai

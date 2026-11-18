@@ -10,6 +10,7 @@ from app.graph.nodes import (
     fallback_node,
     generate_answer_node,
     grade_relevance_node,
+    live_search_node,
     retrieve_context_node,
     rewrite_query_node,
     router_node,
@@ -29,7 +30,16 @@ def route_after_router(state: ChatState) -> str:
 
 
 def route_after_grade(state: ChatState) -> str:
-    """Conditional edge: Route to generator if relevant; otherwise fallback."""
+    """Conditional edge: Route to generator if relevant, to live_search if needed, else fallback."""
+    if state.get("needs_live_search", False):
+        return "live_search"
+    if state.get("is_relevant", False):
+        return "generate"
+    return "fallback"
+
+
+def route_after_live_search(state: ChatState) -> str:
+    """Conditional edge after agentic live search tool execution."""
     if state.get("is_relevant", False):
         return "generate"
     return "fallback"
@@ -44,6 +54,7 @@ def build_chat_graph():
     builder.add_node("router", router_node)
     builder.add_node("retrieve", retrieve_context_node)
     builder.add_node("grade", grade_relevance_node)
+    builder.add_node("live_search", live_search_node)
     builder.add_node("generate", generate_answer_node)
     builder.add_node("cite", citation_builder_node)
     builder.add_node("fallback", fallback_node)
@@ -66,6 +77,16 @@ def build_chat_graph():
     builder.add_conditional_edges(
         "grade",
         route_after_grade,
+        {
+            "generate": "generate",
+            "live_search": "live_search",
+            "fallback": "fallback",
+        },
+    )
+
+    builder.add_conditional_edges(
+        "live_search",
+        route_after_live_search,
         {
             "generate": "generate",
             "fallback": "fallback",

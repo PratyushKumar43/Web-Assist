@@ -31,7 +31,20 @@ class Settings(BaseSettings):
         description="Polite request rate limit in seconds between requests.",
     )
 
-    # 2. LLM & Embeddings (Google Gemini API)
+    # 2. LLM Providers (OpenRouter / Google Gemini)
+    OPENROUTER_API_KEY: Optional[str] = Field(
+        default=None,
+        description="OpenRouter API key for free/commercial LLMs (https://openrouter.ai/).",
+    )
+    OPENROUTER_MODEL: str = Field(
+        default="meta-llama/llama-3.3-70b-instruct:free",
+        description="Default OpenRouter model to invoke.",
+    )
+    OPENROUTER_BASE_URL: str = Field(
+        default="https://openrouter.ai/api/v1",
+        description="OpenRouter API base URL.",
+    )
+
     GEMINI_API_KEY: str = Field(
         default="",
         description="Google Gemini API key for embeddings and generation.",

@@ -4,27 +4,7 @@
     "name": "Millionaire Account",
     "category": "Banking Services",
     "url": "https://www.emiratesnbd.com/en",
-    "summary": "Skip to main contentEnable accessibility for low visionOpen the accessibility menu",
-    "annual_fee": null,
-    "joining_fee": null,
-    "min_requirement": null
-  },
-  {
-    "product_id": "would-you-like-to-talk-to-us-we-d-like-to-hear-from-you",
-    "name": "Would you like to talk to us?  We’d like to hear from you",
-    "category": "Banking Services",
-    "url": "https://www.emiratesnbd.com/en/campaigns/innovation-fund-contact-us",
-    "summary": "As a pioneer in the region's banking industry, Emirates NBD is constantly at the forefront of innovation, seeking out for innovative companies to partner with and invest in. Through our Corporate Venture Fund, we are continually exploring opportuniti",
-    "annual_fee": null,
-    "joining_fee": null,
-    "min_requirement": null
-  },
-  {
-    "product_id": "how-may-we-help-you",
-    "name": "How may we help you?",
-    "category": "Banking Services",
-    "url": "https://www.emiratesnbd.com/en/campaigns/private-banking-contact-us",
-    "summary": "We welcome you to a bespoke banking experience tailored to suit your private banking & wealth management needs, should you, your family, or your business have USD 5 Million (or currency equivalent) and above as Assets Under Management with us.",
+    "summary": "[Apply now](https://www.emiratesnbd.com/en/campaigns/millionaire-accounts?utm_source=Organic-google \"Apply now\")",
     "annual_fee": null,
     "joining_fee": null,
     "min_requirement": null
@@ -34,7 +14,7 @@
     "name": "Corporate Virtual Mobile Card",
     "category": "Commercial Cards",
     "url": "https://www.emiratesnbd.com/en/cards/commercial-cards/corporate-virtual-mobile-card",
-    "summary": "Skip to main contentEnable accessibility for low visionOpen the accessibility menu",
+    "summary": "Take control of every payment with intelligent spend limits and deeper insights.",
     "annual_fee": null,
     "joining_fee": null,
     "min_requirement": null
@@ -44,39 +24,29 @@
     "name": "U By Emaar Signature Credit Card",
     "category": "Credit Cards",
     "url": "https://www.emiratesnbd.com/en/cards/credit-cards/u-by-emaar-signature-credit-card",
-    "summary": "Skip to main contentEnable accessibility for low visionOpen the accessibility menu",
+    "summary": "A credit card that rewards you with enriching experiences every day",
     "annual_fee": "AED 262.50",
     "joining_fee": "AED 525",
     "min_requirement": "Minimum Salary: AED 12,000"
   },
   {
-    "product_id": "employee-engagement-programmes",
-    "name": "Employee Engagement Programmes",
-    "category": "Banking Services",
-    "url": "https://www.emiratesnbd.com/en/careers/life-at-emirates-nbd/culture-engagement-and-wellbeing/employee-engagement-at-emirates-nbd",
-    "summary": "Skip to main contentEnable accessibility for low visionOpen the accessibility menu",
-    "annual_fee": null,
-    "joining_fee": null,
-    "min_requirement": null
-  },
-  {
     "product_id": "cardless-cash-withdrawal",
     "name": "Cardless cash withdrawal",
-    "category": "Banking Services",
+    "category": "Credit Cards",
     "url": "https://www.emiratesnbd.com/en/help-and-support/cardless-cash-withdrawal",
-    "summary": "Skip to main contentEnable accessibility for low visionOpen the accessibility menu",
+    "summary": "Download our mobile app and withdraw cash from any of our ATMs even without your debit card",
     "annual_fee": null,
     "joining_fee": null,
     "min_requirement": null
   },
   {
-    "product_id": "contact-emirates-nbd",
-    "name": "Contact Emirates NBD",
-    "category": "Banking Services",
-    "url": "https://www.emiratesnbd.com/en/help-and-support/contact-us",
-    "summary": "Skip to main contentEnable accessibility for low visionOpen the accessibility menu",
+    "product_id": "gold-savings-certificate",
+    "name": "Gold Savings Certificate",
+    "category": "Wealth & Investments",
+    "url": "https://www.emiratesnbd.com/en/wealth/gold-savings-certificate",
+    "summary": "Convenient and safe gold investment certificates starting at 100 grams (999.9 fineness) held in secure vaults.",
     "annual_fee": null,
     "joining_fee": null,
-    "min_requirement": null
+    "min_requirement": "Starting from 100 grams"
   }
 ]
