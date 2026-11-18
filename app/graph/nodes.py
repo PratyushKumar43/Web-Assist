@@ -35,20 +35,81 @@ def load_catalog_data() -> List[Dict[str, Any]]:
 # -----------------------------------------------------------------------------
 
 def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
-    """Resolve anaphoric pronouns and conversational context into a standalone query."""
+    """Resolve anaphoric pronouns, conversational rejections, and elliptical follow-ups."""
     raw_query = state.get("raw_query", "").strip()
     messages = state.get("messages", [])
 
-    if not messages:
-        return {"standalone_query": raw_query}
+    # Typo normalizations
+    clean_query = re.sub(r"(?i)\bhow\s+me\b", "show me", raw_query)
+    clean_query = re.sub(r"(?i)\bwhat\s+products\s+you\s+offers?\b", "what products do you offer", clean_query)
+    clean_query = re.sub(r"(?i)\bwhich\s+credit\s+cards\s+you\s+offers?\b", "which credit cards do you offer", clean_query)
 
+    if not messages:
+        return {"standalone_query": clean_query}
+
+    # 1. Conversational Rejection / Pivot Detection (e.g. "but i didnt ask for Current Account, show me all types")
+    rejection_match = re.search(
+        r"(?i)\b(?:didn't\s+ask\s+for|didnt\s+ask\s+for|not\s+asking\s+for|not\s+about|instead\s+of|i\s+meant|not\s+the)\s+([a-zA-Z0-9\s]+?)(?:,|$|\.|\bshow\b|\btell\b)",
+        clean_query,
+    )
+    if rejection_match and len(messages) >= 2:
+        prior_user_msgs = [m["content"] for m in messages if m.get("role") == "user"]
+        original_topic = None
+        for prev_umsg in reversed(prior_user_msgs[:-1] if len(prior_user_msgs) > 1 else prior_user_msgs):
+            if re.search(r"\bcredit\s*cards?\b", prev_umsg, re.IGNORECASE):
+                original_topic = "credit cards"
+                break
+            elif re.search(r"\bdebit\s*cards?\b", prev_umsg, re.IGNORECASE):
+                original_topic = "debit cards"
+                break
+            elif re.search(r"\baccounts?\b", prev_umsg, re.IGNORECASE):
+                original_topic = "accounts"
+                break
+            elif re.search(r"\bloans?\b", prev_umsg, re.IGNORECASE):
+                original_topic = "loans"
+                break
+
+        if original_topic:
+            remainder = re.sub(r"(?i)\b(?:but\s+)?i\s+(?:didn't|didnt)\s+ask\s+for\s+[^,.]+[,\.]?\s*", "", clean_query).strip()
+            resolved = f"{remainder} of {original_topic} offered by Emirates NBD" if remainder else f"show all types of {original_topic} offered by Emirates NBD"
+            logger.info("Rejection detected; pivoted back to original topic: '%s' -> '%s'", raw_query, resolved)
+            return {"standalone_query": resolved}
+
+    # 2. Elliptical Follow-Up Resolution (e.g. "any other", "what else", "more options")
+    elliptical_pattern = re.compile(
+        r"^(?:any\s+other|what\s+else|more\s+options|show\s+more|other\s+types|anything\s+else|tell\s+me\s+more)(?:\s+options?|\s+types?|\s+cards?|\s+accounts?)?[?!.]*$",
+        re.IGNORECASE,
+    )
+    if elliptical_pattern.match(clean_query):
+        active_category = None
+        for m in reversed(messages):
+            c_lower = m.get("content", "").lower()
+            if "debit card" in c_lower:
+                active_category = "debit cards"
+                break
+            elif "credit card" in c_lower:
+                active_category = "credit cards"
+                break
+            elif "account" in c_lower:
+                active_category = "accounts"
+                break
+            elif "loan" in c_lower:
+                active_category = "loans"
+                break
+
+        if active_category:
+            resolved = f"What are other {active_category} options offered by Emirates NBD?"
+            logger.info("Elliptical query bound to active topic: '%s' -> '%s'", raw_query, resolved)
+            return {"standalone_query": resolved}
+
+    # 3. Standard Anaphoric Pronoun Resolution
     pronoun_pattern = re.compile(
         r"\b(this account|that account|the account|this card|that card|the card|both of them|it|its|this|that|these|those|them)\b",
         re.IGNORECASE,
     )
 
-    if not pronoun_pattern.search(raw_query):
-        return {"standalone_query": raw_query}
+    if not pronoun_pattern.search(clean_query):
+        return {"standalone_query": clean_query}
 
     catalog = load_catalog_data()
     known_products = [p["name"] for p in catalog]
@@ -59,8 +120,8 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
         r"\bwhat\s+.*(?:providing|provide|offer|have)\b",
         r"\bwhich\s+(?:products|cards|accounts)\b",
     ]
-    if any(re.search(p, raw_query, re.IGNORECASE) for p in broad_inquiry_patterns):
-        resolved = pronoun_pattern.sub("Emirates NBD", raw_query, count=1)
+    if any(re.search(p, clean_query, re.IGNORECASE) for p in broad_inquiry_patterns):
+        resolved = pronoun_pattern.sub("Emirates NBD", clean_query, count=1)
         logger.info("Broad query rewrote pronoun to bank: '%s' -> '%s'", raw_query, resolved)
         return {"standalone_query": resolved}
 
@@ -75,17 +136,16 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
             break
 
     if not last_subject and len(messages) >= 1:
-        # Fall back to extracting subject from the immediate prior user query
         prev_user_msg = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
         if prev_user_msg:
             last_subject = prev_user_msg.strip(" ?.")
 
     if last_subject:
-        resolved = pronoun_pattern.sub(last_subject, raw_query, count=1)
+        resolved = pronoun_pattern.sub(last_subject, clean_query, count=1)
         logger.info("Rewrote query: '%s' -> '%s'", raw_query, resolved)
         return {"standalone_query": resolved}
 
-    return {"standalone_query": raw_query}
+    return {"standalone_query": clean_query}
 
 
 # -----------------------------------------------------------------------------
@@ -173,20 +233,59 @@ def router_node(state: ChatState) -> Dict[str, Any]:
                     "sub_queries": [f"{q_a} details", f"{q_b} details"],
                 }
 
-    # 5. Product Discovery Intent
+    # 5. Category Discovery & General Product Discovery Intent
+    target_category = None
+    if re.search(r"\bdebit\s*cards?\b", query_lower):
+        target_category = "Debit Cards"
+    elif re.search(r"\bcredit\s*cards?\b", query_lower):
+        target_category = "Credit Cards"
+    elif re.search(r"\b(?:commercial|business)\s*cards?\b", query_lower):
+        target_category = "Commercial Cards"
+    elif re.search(r"\b(?:current\s*accounts?|checking\s*accounts?)\b", query_lower):
+        target_category = "Current Accounts"
+    elif re.search(r"\b(?:savings\s*accounts?|deposit\s*accounts?)\b", query_lower):
+        target_category = "Savings Accounts"
+    elif re.search(r"\b(?:loans?|financing|mortgages?)\b", query_lower):
+        target_category = "Loans & Financing"
+
     discovery_triggers = [
         "what cards", "all credit cards", "list of accounts", "what options",
         "show products", "what accounts can i open", "account options",
         "recommend a card", "options for business", "savings options", "browse",
         "what products", "what is it providing", "what does it provide", "providing", "what services", "all products",
+        "which credit cards", "which debit cards", "all types", "show me all", "what types",
+        "card options", "debit cards options", "credit card options", "credit cards do you offer",
+        "debit cards do you offer", "cards do you offer", "what cards do you have", "other debit cards options",
+        "other credit cards options",
     ]
-    is_discovery = any(t in query_lower for t in discovery_triggers) or bool(
-        re.search(r"\b(?:what|which|all|list|show)\b.*(?:cards?|accounts?|loans?|products?|options?|services?).*\b(?:available|offered|have|exist|open|apply|get|providing|provide)\b", query_lower)
-        or re.search(r"\bavailable\s+(?:credit\s+)?cards?\b", query_lower)
+
+    category_discovery_pattern = re.compile(
+        r"\b(?:which|what|show|list|tell\s+me\s+about)\s+(?:are\s+(?:the|your)\s+)?(?:available\s+)?(?:credit\s*cards?|debit\s*cards?|current\s*accounts?|savings\s*accounts?|accounts?|cards?|options?|types?)\b|"
+        r"\b(?:credit\s*cards?|debit\s*cards?|current\s*accounts?|savings\s*accounts?|accounts?|cards?)\s+(?:do\s+you\s+)?(?:offer|have|provide)\b|"
+        r"\b(?:debit|credit)\s*cards?\s+options?\b|"
+        r"\b(?:all\s+types|show\s+me\s+all|list\s+all)\b",
+        re.IGNORECASE,
+    )
+
+    is_attribute_fact = any(
+        a in query_lower
+        for a in [
+            "annual fee", "joining fee", "what is the fee", "how much is the fee",
+            "minimum balance", "min balance", "minimum salary", "fall-below", "fall below",
+            "interest rate", "profit rate", "how to apply", "eligibility criteria",
+        ]
+    )
+
+    is_discovery = not is_attribute_fact and (
+        any(t in query_lower for t in discovery_triggers)
+        or bool(category_discovery_pattern.search(query_lower))
+        or bool(re.search(r"\b(?:what|which|all|list|show|browse|tell\s+me)\b.*(?:cards?|accounts?|loans?|products?|options?|services?|types?).*\b(?:available|offered|offer|offers|have|exist|open|apply|get|providing|provide)\b", query_lower))
+        or bool(re.search(r"\bavailable\s+(?:credit\s+|debit\s+)?cards?\b", query_lower))
     )
     if is_discovery:
         return {
             "intent": "DISCOVERY",
+            "target_category": target_category,
             "sub_queries": [query],
         }
 
@@ -226,20 +325,60 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
                 retrieved_chunks.append(c)
 
     elif intent == "DISCOVERY":
-        loop = asyncio.get_event_loop()
-        retrieved_chunks = await loop.run_in_executor(
-            None, indexer.hybrid_search, standalone_query, settings.TOP_K
-        )
+        target_category = state.get("target_category")
         catalog = load_catalog_data()
-        for prod in catalog:
-            if not any(prod["name"].lower() in c.get("product_name", "").lower() for c in retrieved_chunks):
-                retrieved_chunks.append({
-                    "chunk_id": f"catalog_{prod['product_id']}",
-                    "text": f"Product: {prod['name']}\nCategory: {prod['category']}\nSummary: {prod.get('summary', '')}\nAnnual Fee: {prod.get('annual_fee') or 'None/Not Specified'}\nJoining Fee: {prod.get('joining_fee') or 'None/Not Specified'}\nRequirements: {prod.get('min_requirement') or 'N/A'}",
-                    "product_name": prod["name"],
-                    "url": prod["url"],
-                    "score": 0.85,
-                })
+        loop = asyncio.get_event_loop()
+
+        if target_category:
+            retrieved_chunks = await loop.run_in_executor(
+                None, indexer.hybrid_search, f"{target_category} {standalone_query}", settings.TOP_K
+            )
+            # Strict category isolation
+            def is_chunk_compatible(c: Dict[str, Any]) -> bool:
+                c_cat = c.get("category", "").lower()
+                c_prod = c.get("product_name", "").lower()
+                c_url = c.get("url", "").lower()
+                if "contact" in c_url or "career" in c_url or "complaint" in c_url:
+                    return False
+                if target_category == "Credit Cards":
+                    if any(k in c_cat or k in c_prod for k in ["current account", "savings account", "debit card"]):
+                        return False
+                elif target_category == "Debit Cards":
+                    if any(k in c_cat or k in c_prod for k in ["credit card", "current account", "savings account", "transfer your rewards"]):
+                        return False
+                elif target_category == "Current Accounts":
+                    if any(k in c_cat or k in c_prod for k in ["credit card", "debit card", "savings account"]):
+                        return False
+                return True
+
+            retrieved_chunks = [c for c in retrieved_chunks if is_chunk_compatible(c)]
+
+            # Inject ALL products from catalog belonging strictly to target_category
+            for prod in catalog:
+                if prod["category"].lower() == target_category.lower():
+                    retrieved_chunks.append({
+                        "chunk_id": f"catalog_{prod['product_id']}",
+                        "text": f"Product: {prod['name']}\nCategory: {prod['category']}\nSummary: {prod.get('summary', '')}\nAnnual Fee: {prod.get('annual_fee') or 'None/Not Specified'}\nJoining Fee: {prod.get('joining_fee') or 'None/Not Specified'}\nRequirements: {prod.get('min_requirement') or 'N/A'}",
+                        "product_name": prod["name"],
+                        "title": f"{prod['name']} | Emirates NBD",
+                        "url": prod["url"],
+                        "score": 0.95,
+                    })
+        else:
+            retrieved_chunks = await loop.run_in_executor(
+                None, indexer.hybrid_search, standalone_query, settings.TOP_K
+            )
+            retrieved_chunks = [c for c in retrieved_chunks if not any(k in c.get("url", "").lower() for k in ["contact", "career", "complaint"])]
+            for prod in catalog:
+                if not any(prod["name"].lower() in c.get("product_name", "").lower() for c in retrieved_chunks):
+                    retrieved_chunks.append({
+                        "chunk_id": f"catalog_{prod['product_id']}",
+                        "text": f"Product: {prod['name']}\nCategory: {prod['category']}\nSummary: {prod.get('summary', '')}\nAnnual Fee: {prod.get('annual_fee') or 'None/Not Specified'}\nJoining Fee: {prod.get('joining_fee') or 'None/Not Specified'}\nRequirements: {prod.get('min_requirement') or 'N/A'}",
+                        "product_name": prod["name"],
+                        "title": f"{prod['name']} | Emirates NBD",
+                        "url": prod["url"],
+                        "score": 0.85,
+                    })
 
     else:
         loop = asyncio.get_event_loop()
@@ -387,6 +526,7 @@ def deterministic_grounded_synthesis(
     query: str,
     intent: str,
     chunks: List[Dict[str, Any]],
+    target_category: Optional[str] = None,
 ) -> Tuple[str, List[str]]:
     """Synthesize an exact, grounded response directly from retrieved chunks."""
     used_chunk_ids: List[str] = []
@@ -394,13 +534,22 @@ def deterministic_grounded_synthesis(
     if intent == "DISCOVERY":
         catalog = load_catalog_data()
         items = []
-        for p in catalog:
+        if target_category:
+            filtered_catalog = [p for p in catalog if p.get("category", "").lower() == target_category.lower()]
+            if not filtered_catalog:
+                filtered_catalog = catalog
+        else:
+            filtered_catalog = catalog
+
+        for p in filtered_catalog:
             summary = p.get("summary", "")
             fee = p.get("annual_fee") or "N/A"
             req = p.get("min_requirement") or "N/A"
-            items.append(f"- **{p['name']}** ({p['category']}): Annual Fee: {fee} | Requirements: {req}")
-        answer = "Here are the verified products available on the Emirates NBD website:\n\n" + "\n".join(items)
-        used_chunk_ids = [c["chunk_id"] for c in chunks[:4] if "chunk_id" in c]
+            items.append(f"- **{p['name']}** ({p['category']}): {summary} | Annual Fee: {fee} | Requirements: {req}")
+
+        cat_title = f"{target_category} " if target_category else "products "
+        answer = f"Here are the verified {cat_title}available on the Emirates NBD website:\n\n" + "\n".join(items)
+        used_chunk_ids = [c["chunk_id"] for c in chunks if "chunk_id" in c][:6]
         return answer, used_chunk_ids
 
     if intent == "COMPARISON":
@@ -468,11 +617,20 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
     query = state.get("standalone_query", state.get("raw_query", ""))
     chunks = state.get("retrieved_chunks", [])
     intent = state.get("intent", "FACT")
+    target_category = state.get("target_category")
 
     context_str = "\n\n---\n\n".join(
         f"Chunk ID: {c.get('chunk_id')}\nProduct: {c.get('product_name')}\nURL: {c.get('url')}\nContent:\n{c.get('text')}"
         for c in chunks
     )
+
+    category_instruction = ""
+    if target_category and intent == "DISCOVERY":
+        category_instruction = (
+            f" The user is asking specifically about {target_category}. "
+            f"ONLY list products belonging to {target_category}. "
+            f"Do NOT include or mix products from any other category (e.g. do not discuss Current Accounts or Savings Accounts if asked about Credit Cards or Debit Cards)."
+        )
 
     # 1. Attempt generation via OpenRouter API (supports openrouter/free)
     if settings.OPENROUTER_API_KEY and not settings.OPENROUTER_API_KEY.startswith("<"):
@@ -489,6 +647,7 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
                 "You are the official Emirates NBD AI banking assistant. "
                 "Answer the user's question clearly, helpfully, and conversationally strictly based on the provided context chunks. "
                 "Do not extrapolate, guess, or invent fees, interest rates, or eligibility rules. "
+                f"{category_instruction} "
                 "Format your answer cleanly with bullet points, fees, eligibility, and features where appropriate. "
                 "When answering inquiries about account minimum balance, maintenance fees, or requirements for promotional/specialized accounts (such as the Millionaire Account), explain both its specific features (e.g. prize draws) and its governing baseline terms from Emirates NBD's Key Facts Statement (KFS) / Personal Banking Classic Package (e.g. minimum monthly average balance of AED 3,000, or AED 5,000 for standard digital savings, and AED 26.25 monthly fall-below fee with salary transfer exemptions). "
                 "If the context does not contain sufficient information to answer the question, state politely that the information is not specified in current official Emirates NBD records."
@@ -552,6 +711,7 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
             prompt = f"""You are the official Emirates NBD AI banking assistant.
 Answer the user's question strictly and exclusively using the provided context chunks.
 Do not extrapolate, guess, or invent fees, interest rates, or eligibility rules.
+{category_instruction}
 If context is insufficient, set answerable=false and state that information is not available in official bank records.
 
 <retrieved_context>
@@ -590,8 +750,8 @@ If context is insufficient, set answerable=false and state that information is n
         except Exception as e:
             logger.warning("Gemini API call failed (%s). Falling back to deterministic grounded synthesis.", e)
 
-    # 2. Resilient Deterministic Grounded Synthesis
-    answer, used_chunk_ids = deterministic_grounded_synthesis(query, intent, chunks)
+    # 3. Resilient Deterministic Grounded Synthesis
+    answer, used_chunk_ids = deterministic_grounded_synthesis(query, intent, chunks, target_category=target_category)
     return {
         "answer": answer,
         "used_chunk_ids": used_chunk_ids,
@@ -608,6 +768,7 @@ def citation_builder_node(state: ChatState) -> Dict[str, Any]:
     """Construct verified source citations server-side from chunk payloads."""
     retrieved_chunks = state.get("retrieved_chunks", [])
     used_chunk_ids = set(state.get("used_chunk_ids", []))
+    target_category = state.get("target_category")
 
     citations: List[Dict[str, Any]] = []
     seen_urls = set()
@@ -615,19 +776,40 @@ def citation_builder_node(state: ChatState) -> Dict[str, Any]:
     # Prioritize chunks directly used in the answer
     candidates = [c for c in retrieved_chunks if c.get("chunk_id") in used_chunk_ids]
     if not candidates:
-        candidates = retrieved_chunks[:3]
+        candidates = retrieved_chunks
 
+    # If target_category is specified, filter out incompatible citations
+    filtered_candidates = []
     for c in candidates:
+        url = c.get("url", "").lower()
+        if any(bad in url for bad in ["contact", "career", "complaint"]):
+            continue
+        if target_category == "Credit Cards":
+            if any(bad in url for bad in ["current-account", "savings-account", "help-and-support"]):
+                continue
+        elif target_category == "Debit Cards":
+            if any(bad in url for bad in ["credit-card", "current-account", "savings-account", "rewards"]):
+                continue
+        elif target_category in ["Current Accounts", "Savings Accounts"]:
+            if any(bad in url for bad in ["credit-card", "debit-card"]):
+                continue
+        filtered_candidates.append(c)
+
+    final_candidates = filtered_candidates if filtered_candidates else candidates
+
+    for c in final_candidates:
         url = c.get("url")
         if url and url not in seen_urls:
             seen_urls.add(url)
             citations.append(
                 SourceItem(
-                    title=c.get("title", "Emirates NBD Documentation"),
+                    title=c.get("title") or f"{c.get('product_name', 'Emirates NBD Documentation')} | Emirates NBD",
                     url=url,
                     last_crawled=c.get("crawled_at") or "2026-11-18",
                 ).model_dump()
             )
+        if len(citations) >= 4:
+            break
 
     return {"citations": citations}
 

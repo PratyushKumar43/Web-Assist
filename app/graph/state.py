@@ -16,6 +16,7 @@ class ChatState(TypedDict, total=False):
 
     # Classification & decomposition
     intent: str  # "FACT" | "DISCOVERY" | "COMPARISON" | "OUT_OF_SCOPE"
+    target_category: Optional[str]  # e.g. "Credit Cards", "Debit Cards", "Current Accounts"
     sub_queries: List[str]
 
     # Context retrieval & evaluation

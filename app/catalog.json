@@ -30,24 +30,154 @@
     "min_requirement": "AED 5,000 minimum balance (or AED 3,000 under Classic package)"
   },
   {
-    "product_id": "corporate-virtual-mobile-card",
-    "name": "Corporate Virtual Mobile Card",
-    "category": "Commercial Cards",
-    "url": "https://www.emiratesnbd.com/en/cards/commercial-cards/corporate-virtual-mobile-card",
-    "summary": "Take control of every payment with intelligent spend limits and deeper insights.",
-    "annual_fee": null,
-    "joining_fee": null,
-    "min_requirement": null
+    "product_id": "voyager-credit-card",
+    "name": "Voyager World Credit Card",
+    "category": "Credit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/credit-cards/voyager-world-credit-card",
+    "summary": "Premier travel rewards card earning Voyager Miles redeemable for flights with any airline, hotel stays, airport transfers, and global lounge access.",
+    "annual_fee": "AED 750",
+    "joining_fee": "Free",
+    "min_requirement": "Minimum Salary: AED 15,000"
+  },
+  {
+    "product_id": "skywards-credit-card",
+    "name": "Emirates Skywards Visa Infinite Credit Card",
+    "category": "Credit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/credit-cards/emirates-skywards-infinite-credit-card",
+    "summary": "Aviation co-branded card earning Skywards Miles on everyday purchases with complimentary Emirates Skywards Silver tier status.",
+    "annual_fee": "AED 1,575",
+    "joining_fee": "Free",
+    "min_requirement": "Minimum Salary: AED 30,000"
+  },
+  {
+    "product_id": "share-visa-credit-card",
+    "name": "SHARE Visa Signature Credit Card",
+    "category": "Credit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/credit-cards/share-signature-credit-card",
+    "summary": "Shopping and entertainment rewards card earning SHARE points across Carrefour, VOX Cinemas, Mall of the Emirates with buy-1-get-1 cinema tickets.",
+    "annual_fee": "AED 525",
+    "joining_fee": "Free",
+    "min_requirement": "Minimum Salary: AED 12,000"
   },
   {
     "product_id": "u-by-emaar-signature-credit-card",
     "name": "U By Emaar Signature Credit Card",
     "category": "Credit Cards",
     "url": "https://www.emiratesnbd.com/en/cards/credit-cards/u-by-emaar-signature-credit-card",
-    "summary": "A credit card that rewards you with enriching experiences every day",
+    "summary": "Lifestyle credit card offering exclusive Upoints back and dining, stay, and leisure discounts across all Emaar destinations.",
     "annual_fee": "AED 262.50",
     "joining_fee": "AED 525",
     "min_requirement": "Minimum Salary: AED 12,000"
+  },
+  {
+    "product_id": "noon-one-credit-card",
+    "name": "noon One Visa Credit Card",
+    "category": "Credit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/credit-cards/noon-credit-card",
+    "summary": "E-commerce card offering up to 5% unlimited cashback on noon, NowNow, and SIVVI purchases with complimentary noon One annual membership.",
+    "annual_fee": "Free for Life",
+    "joining_fee": "None",
+    "min_requirement": "Minimum Salary: AED 5,000"
+  },
+  {
+    "product_id": "duo-credit-card",
+    "name": "Emirates NBD Duo Credit Card",
+    "category": "Credit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/credit-cards/duo-credit-card",
+    "summary": "Dual-card package offering 5% Plus Points cashback on groceries, utilities, school fees, and fuel across the UAE.",
+    "annual_fee": "AED 840 (waived with spend)",
+    "joining_fee": "Free",
+    "min_requirement": "Minimum Salary: AED 12,000"
+  },
+  {
+    "product_id": "visa-flexi-credit-card",
+    "name": "Visa Flexi Credit Card",
+    "category": "Credit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/credit-cards/visa-flexi-card",
+    "summary": "Customizable credit card allowing cardholders to select and adjust their benefits across travel, entertainment, lifestyle, and cashback.",
+    "annual_fee": "Free for Life",
+    "joining_fee": "None",
+    "min_requirement": "Minimum Salary: AED 8,000"
+  },
+  {
+    "product_id": "corporate-virtual-mobile-card",
+    "name": "Corporate Virtual Mobile Card",
+    "category": "Commercial Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/commercial-cards/corporate-virtual-mobile-card",
+    "summary": "Take control of every payment with intelligent spend limits and deeper insights.",
+    "annual_fee": "None/Not Specified",
+    "joining_fee": "None/Not Specified",
+    "min_requirement": "N/A"
+  },
+  {
+    "product_id": "visa-classic-debit-card",
+    "name": "Visa Classic Debit Card",
+    "category": "Debit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/debit-cards/visa-classic-debit-card",
+    "summary": "Standard worldwide debit card linked to Classic current and savings accounts for ATM cash withdrawals and retail shopping.",
+    "annual_fee": "Free with account package",
+    "joining_fee": "Free",
+    "min_requirement": "Available with any standard personal current or savings account"
+  },
+  {
+    "product_id": "beyond-visa-platinum-debit-card",
+    "name": "Beyond Visa Platinum Debit Card",
+    "category": "Debit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/debit-cards/beyond-visa-platinum-debit-card",
+    "summary": "Premium debit card issued to Beyond banking package customers with enhanced daily limits, travel discounts, and dining offers.",
+    "annual_fee": "Free with Beyond package",
+    "joining_fee": "Free",
+    "min_requirement": "Personal Banking Beyond package (AED 15,000 salary or AED 100,000 balance)"
+  },
+  {
+    "product_id": "visa-signature-debit-card",
+    "name": "Visa Signature Debit Card",
+    "category": "Debit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/debit-cards/visa-signature-debit-card",
+    "summary": "High-tier debit card with airport lounge access across the Middle East, travel insurance, and concierge benefits.",
+    "annual_fee": "Package-linked",
+    "joining_fee": "Free",
+    "min_requirement": "Affluent and UAE National account tiers"
+  },
+  {
+    "product_id": "priority-visa-infinite-debit-card",
+    "name": "Priority Banking Visa Infinite Debit Card",
+    "category": "Debit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/debit-cards/priority-banking-visa-infinite-debit-card",
+    "summary": "Top-tier debit card exclusively for Priority Banking clients featuring unlimited global lounge access, valet parking, and concierge privileges.",
+    "annual_fee": "Free with Priority Banking",
+    "joining_fee": "Free",
+    "min_requirement": "Priority Banking status (AED 500,000 balance or AED 50,000 salary)"
+  },
+  {
+    "product_id": "go4it-gold-debit-card",
+    "name": "Go4it Visa Gold Debit Card",
+    "category": "Debit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/debit-cards/go4it-gold-debit-card",
+    "summary": "Everyday lifestyle and transit debit card featuring Dubai RTA Nol card integration for metro travel, cinema ticket discounts, and Plus Points.",
+    "annual_fee": "Free",
+    "joining_fee": "Free",
+    "min_requirement": "Personal Banking Classic or Youth accounts"
+  },
+  {
+    "product_id": "manchester-united-debit-card",
+    "name": "Manchester United Platinum Debit Card",
+    "category": "Debit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/debit-cards/manchester-united-debit-card",
+    "summary": "Co-branded football debit card offering discounts on official Manchester United merchandise and entry into match ticket draws.",
+    "annual_fee": "Free",
+    "joining_fee": "Free",
+    "min_requirement": "Available with Manchester United Savings Account"
+  },
+  {
+    "product_id": "business-banking-visa-infinite-debit-card",
+    "name": "Business Banking Visa Infinite Debit Card",
+    "category": "Debit Cards",
+    "url": "https://www.emiratesnbd.com/en/cards/debit-cards/business-debit-card",
+    "summary": "Commercial debit card designed for SMEs and corporate account holders with high cash withdrawal limits and expense reporting.",
+    "annual_fee": "Free with business accounts",
+    "joining_fee": "Free",
+    "min_requirement": "Emirates NBD Business Account holder"
   },
   {
     "product_id": "gold-savings-certificate",
