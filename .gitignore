@@ -1,0 +1,28 @@
+# Environments & Secrets
+.env
+.env.local
+.env.*.local
+
+# Data & Knowledge Base
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Python Cache & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Tooling & Test Caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local Qdrant Storage
+qdrant_data/

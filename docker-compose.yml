@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - SITE_URL=${SITE_URL}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - TINYFISH_API_KEY=${TINYFISH_API_KEY}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
