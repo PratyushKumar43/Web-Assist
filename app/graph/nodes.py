@@ -102,9 +102,45 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
             logger.info("Elliptical query bound to active topic: '%s' -> '%s'", raw_query, resolved)
             return {"standalone_query": resolved}
 
+    # 2.5 Dual Subject / Comparison Follow-Up Resolution (e.g. "i want both difference", "compare both")
+    both_pattern = re.compile(
+        r"\b(?:both\s+of\s+them|both|the\s+two|those\s+two|these\s+two|two\s+(?:of\s+them|cards?|products?|accounts?))\b",
+        re.IGNORECASE,
+    )
+    compare_cue = re.compile(
+        r"\b(?:compare|comparison|differ(?:s|ence|ences)?|how\s+(?:are\s+they\s+)?different|what\s+is\s+different|versus|vs\.?|side\s+by\s+side)\b",
+        re.IGNORECASE,
+    )
+
+    if both_pattern.search(clean_query) and messages:
+        catalog = load_catalog_data()
+        known_products = sorted([p["name"] for p in catalog], key=len, reverse=True)
+
+        recent_products: List[str] = []
+        for msg in reversed(messages):
+            content = msg.get("content", "")
+            content_norm = re.sub(r"s\b", "", content.lower())
+            for prod in known_products:
+                prod_norm = re.sub(r"s\b", "", prod.lower())
+                if prod_norm in content_norm and prod not in recent_products:
+                    recent_products.append(prod)
+                if len(recent_products) >= 2:
+                    break
+            if len(recent_products) >= 2:
+                break
+
+        if len(recent_products) >= 2:
+            prod_b, prod_a = recent_products[0], recent_products[1]
+            if compare_cue.search(clean_query):
+                resolved = f"Compare {prod_a} and {prod_b}"
+            else:
+                resolved = both_pattern.sub(f"{prod_a} and {prod_b}", clean_query, count=1)
+            logger.info("Resolved dual subject follow-up: '%s' -> '%s'", raw_query, resolved)
+            return {"standalone_query": resolved}
+
     # 3. Standard Anaphoric Pronoun Resolution
     pronoun_pattern = re.compile(
-        r"\b(this account|that account|the account|this card|that card|the card|both of them|it|its|this|that|these|those|them)\b",
+        r"\b(this account|that account|the account|this card|that card|the card|both of them|both|it|its|this|that|these|those|them)\b",
         re.IGNORECASE,
     )
 
@@ -201,9 +237,24 @@ def router_node(state: ChatState) -> Dict[str, Any]:
             "fallback_reason": "off_topic",
         }
 
+    # 3.5 General Bank Overview / About Intent
+    about_pattern = re.compile(
+        r"^(?:about|tell\s+me\s+about|what\s+is|who\s+is|overview\s+of|introduce)?\s*"
+        r"(?:emirates\s*nbd|the\s+bank|your\s+bank|this\s+bank|emiratesnbd)\s*[?.!]*$",
+        re.IGNORECASE,
+    )
+    if about_pattern.match(query_lower.strip()):
+        return {
+            "intent": "ABOUT",
+            "sub_queries": [query],
+        }
+
     # 4. Comparison Intent (Sub-query decomposition)
-    comparison_triggers = ["compare", "versus", " vs ", "difference between", "better than"]
-    is_comparison = any(t in query_lower for t in comparison_triggers)
+    compare_pattern = re.compile(
+        r"\b(?:compare|comparison|versus|vs\.?|vs\b|differ(?:s|ence|ences)?|how\s+(?:are\s+they\s+)?different|what\s+is\s+different|better\s+than|which\s+(?:one\s+)?is\s+better|side\s+by\s+side)\b",
+        re.IGNORECASE,
+    )
+    is_comparison = bool(compare_pattern.search(query_lower))
 
     if is_comparison:
         catalog = load_catalog_data()
@@ -228,8 +279,9 @@ def router_node(state: ChatState) -> Dict[str, Any]:
             # Fallback heuristic: split on "and", "vs", "versus"
             parts = re.split(r"\b(?:and|vs|versus)\b", query, flags=re.IGNORECASE)
             if len(parts) >= 2:
-                q_a = re.sub(r"(?i)\bcompare\b|\bdifference between\b", "", parts[0]).strip()
-                q_b = re.sub(r"(?i)\bcompare\b|\bdifference between\b", "", parts[1]).strip()
+                clean_trigger = r"(?i)\b(?:what\s+(?:is|are)(?:\s+the)?|show(?:\s+me)?|tell(?:\s+me)?|compare|comparison|difference[s]?\s*(?:in|of|between)?|differ(?:s|ent)?|versus|vs\.?|better\s+than|side\s+by\s+side)\b"
+                q_a = re.sub(clean_trigger, "", parts[0]).strip()
+                q_b = re.sub(clean_trigger, "", parts[1]).strip()
                 return {
                     "intent": "COMPARISON",
                     "sub_queries": [f"{q_a} details", f"{q_b} details"],
@@ -325,6 +377,37 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
             if cid and cid not in seen_ids:
                 seen_ids.add(cid)
                 retrieved_chunks.append(c)
+
+        # Inject catalog specification chunks for products in context
+        catalog = load_catalog_data()
+        products_in_context = state.get("products_in_context", [])
+        for p_name in products_in_context:
+            for prod in catalog:
+                if prod["name"].lower() == p_name.lower():
+                    cat_cid = f"catalog_{prod['product_id']}"
+                    if not any(c.get("chunk_id") == cat_cid for c in retrieved_chunks):
+                        retrieved_chunks.append({
+                            "chunk_id": cat_cid,
+                            "text": (
+                                f"Product: {prod['name']}\n"
+                                f"Category: {prod['category']}\n"
+                                f"Summary: {prod.get('summary', '')}\n"
+                                f"Annual Fee: {prod.get('annual_fee') or 'None / Free'}\n"
+                                f"Joining Fee: {prod.get('joining_fee') or 'None'}\n"
+                                f"Requirements: {prod.get('min_requirement') or 'N/A'}"
+                            ),
+                            "product_name": prod["name"],
+                            "title": f"{prod['name']} | Emirates NBD",
+                            "url": prod["url"],
+                            "score": 0.95,
+                        })
+
+    elif intent == "ABOUT":
+        loop = asyncio.get_event_loop()
+        retrieved_chunks = await loop.run_in_executor(
+            None, indexer.hybrid_search, "Emirates NBD banking products overview services", settings.TOP_K
+        )
+        retrieved_chunks = [c for c in retrieved_chunks if not any(k in c.get("url", "").lower() for k in ["contact", "career", "complaint"])]
 
     elif intent == "DISCOVERY":
         target_category = state.get("target_category")
@@ -446,6 +529,9 @@ def grade_relevance_node(state: ChatState) -> Dict[str, Any]:
     intent = state.get("intent", "FACT")
     query = state.get("standalone_query", state.get("raw_query", ""))
 
+    if intent == "ABOUT":
+        return {"is_relevant": True, "needs_live_search": False}
+
     if not retrieved_chunks:
         return {"is_relevant": False, "needs_live_search": True, "fallback_reason": "low_relevance"}
 
@@ -529,9 +615,30 @@ def deterministic_grounded_synthesis(
     intent: str,
     chunks: List[Dict[str, Any]],
     target_category: Optional[str] = None,
+    products_in_context: Optional[List[str]] = None,
 ) -> Tuple[str, List[str]]:
     """Synthesize a warm, human-toned response with clean Markdown tables without repeating self-introductions."""
     used_chunk_ids: List[str] = []
+
+    if intent == "ABOUT":
+        catalog = load_catalog_data()
+        lines = [
+            "**Emirates NBD** is one of the leading banking groups in the UAE and the wider Middle East, headquartered in Dubai. We offer a comprehensive suite of personal, business, private, and Islamic banking solutions designed to meet diverse financial needs.\n",
+            "**Verified Product Categories Available:**",
+        ]
+        cat_counts = {}
+        for p in catalog:
+            c = p.get("category", "General")
+            cat_counts[c] = cat_counts.get(c, 0) + 1
+        for c in sorted(cat_counts.keys()):
+            lines.append(f"- **{c}** ({cat_counts[c]} products)")
+
+        lines.append(
+            "\n*How can I assist you today? You can ask me to list available credit cards or accounts, compare specific products, or check fees and eligibility criteria!*"
+        )
+        answer = "\n".join(lines)
+        used_chunk_ids = [c["chunk_id"] for c in chunks if "chunk_id" in c][:2]
+        return answer, used_chunk_ids
 
     if intent == "DISCOVERY":
         catalog = load_catalog_data()
@@ -562,8 +669,17 @@ def deterministic_grounded_synthesis(
         return answer, used_chunk_ids
 
     if intent == "COMPARISON":
+        catalog = load_catalog_data()
         # Structure side-by-side comparison in a clean Markdown table
-        prod_names = list({c.get("product_name", "Product") for c in chunks if c.get("product_name")})
+        prod_names = []
+        if products_in_context:
+            for p in products_in_context:
+                if p not in prod_names:
+                    prod_names.append(p)
+        for c in chunks:
+            p = c.get("product_name")
+            if p and p not in prod_names:
+                prod_names.append(p)
         if len(prod_names) < 2:
             prod_names = ["Product A", "Product B"]
 
@@ -574,23 +690,31 @@ def deterministic_grounded_synthesis(
         ]
 
         def extract_pinfo(pname: str) -> Dict[str, str]:
+            cat_match = next((p for p in catalog if p["name"].lower() == pname.lower()), None)
             p_chunks = [c for c in chunks if c.get("product_name") == pname]
+            for c in p_chunks:
+                if c.get("chunk_id"):
+                    used_chunk_ids.append(c.get("chunk_id"))
+
+            if cat_match:
+                fee = cat_match.get("annual_fee") or "Free / None"
+                req = cat_match.get("min_requirement") or "N/A"
+                summary = cat_match.get("summary") or "Official Emirates NBD banking product"
+                return {"fee": fee, "req": req, "summary": summary}
+
             text_blob = " ".join(c.get("text", "") for c in p_chunks)
             fee_match = re.search(r"(?:annual fee|fee)[\s:]*([^\n.,;]+)", text_blob, re.IGNORECASE)
             salary_match = re.search(r"(?:minimum salary|salary requirement|salary)[\s:]*([^\n.,;]+)", text_blob, re.IGNORECASE)
             balance_match = re.search(r"(?:minimum balance|balance requirement|average balance)[\s:]*([^\n.,;]+)", text_blob, re.IGNORECASE)
             req = salary_match.group(1).strip() if salary_match else (balance_match.group(1).strip() if balance_match else "Standard eligibility")
             fee = fee_match.group(1).strip() if fee_match else "Free / Package-linked"
-            for c in p_chunks:
-                if c.get("chunk_id"):
-                    used_chunk_ids.append(c.get("chunk_id"))
-            return {"fee": fee, "req": req}
+            return {"fee": fee, "req": req, "summary": "Official Emirates NBD product perks"}
 
         fa = extract_pinfo(prod_names[0])
         fb = extract_pinfo(prod_names[1])
         lines.append(f"| **Annual Fee** | {fa['fee']} | {fb['fee']} |")
         lines.append(f"| **Eligibility / Requirement** | {fa['req']} | {fb['req']} |")
-        lines.append(f"| **Primary Benefit** | Official Emirates NBD product perks | Official Emirates NBD product perks |")
+        lines.append(f"| **Primary Benefit** | {fa['summary']} | {fb['summary']} |")
 
         lines.append(f"\nBoth options offer excellent features tailored to different customer needs. Would you like me to guide you on how to apply for either option?")
         return "\n".join(lines), list(dict.fromkeys(used_chunk_ids))
@@ -644,6 +768,26 @@ def deterministic_grounded_synthesis(
             if line_clean.startswith("![") or line_clean.startswith("http") or line_clean.startswith("[View"):
                 continue
             if "terms and conditions" in line_lower and len(line_clean) < 30:
+                continue
+
+            # Skip legal boilerplate and disclaimers
+            legal_boilerplate = [
+                "forward-looking statement", "past performance", "merchantability",
+                "terms and conditions apply", "subject to change", "without prior notice",
+                "privacy policy", "cookie policy", "all rights reserved",
+                "securities and commodities authority", "regulated by", "disclaimer",
+                "©", "copyright", "trademark", "po box", "p.o. box",
+                "licensed and regulated by", "central bank of the uae",
+                "table below provides a quick overview", "| | | | | --- | --- | --- |",
+            ]
+            if any(bp in line_lower for bp in legal_boilerplate):
+                continue
+            # Skip empty markdown table formatting or navigation link lines
+            if line_clean.startswith("|") and ("---" in line_clean or (line_clean.count("|") > 4 and len(line_clean.replace("|", "").strip()) < 5)):
+                continue
+            if re.match(r"^\[.*?\]\(.*?\)(?:\s*\|?\s*\[.*?\]\(.*?\))*\s*$", line_clean):
+                continue
+            if line_clean.startswith("[") and line_clean.endswith(")") and "](http" in line_clean:
                 continue
 
             norm_key = re.sub(r"[^\w\s]", "", line_lower)[:60]
@@ -752,6 +896,7 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
                 "Never use robotic boilerplate like 'According to official Emirates NBD documentation for X:'. On standard queries, dive straight into answering the user's question with warm, professional phrasing (e.g. 'Here is what you need to know about...', 'Here are the details for...', 'Here is an overview of...'). "
                 f"{category_instruction} "
                 "Formatting Guidelines: "
+                "- For general bank inquiries ('about emirates nbd', 'overview', 'about the bank'), provide a warm introduction to Emirates NBD as a leading UAE bank and briefly outline the primary verified banking categories available (Credit Cards, Debit Cards, Accounts, Wealth, Loans). "
                 "- For product discovery (when listing cards, accounts, or services), present the options in a clean Markdown table with columns: | Product Name | Key Highlights / Rewards | Annual Fee | Minimum Requirement |. "
                 "- For product comparisons, present a clear side-by-side Markdown comparison table (| Feature / Detail | Product A | Product B |) followed by a helpful conversational summary. "
                 "- For single-product inquiries, answer conversationally with clean bullet points or structured highlights for fees, balance rules, and requirements. "
@@ -860,7 +1005,10 @@ If context is insufficient, set answerable=false and state politely that informa
             logger.warning("Gemini API call failed (%s). Falling back to deterministic grounded synthesis.", e)
 
     # 3. Resilient Deterministic Grounded Synthesis
-    answer, used_chunk_ids = deterministic_grounded_synthesis(query, intent, chunks, target_category=target_category)
+    products_in_context = state.get("products_in_context", [])
+    answer, used_chunk_ids = deterministic_grounded_synthesis(
+        query, intent, chunks, target_category=target_category, products_in_context=products_in_context
+    )
     return {
         "answer": answer,
         "used_chunk_ids": used_chunk_ids,

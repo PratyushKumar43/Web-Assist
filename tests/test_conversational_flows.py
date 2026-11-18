@@ -219,3 +219,76 @@ def test_citation_builder_category_filtering():
     assert "https://www.emiratesnbd.com/en/cards/credit-cards/skywards-signature" in urls
     assert "https://www.emiratesnbd.com/en/help-and-support/contact-us" not in urls
     assert "https://www.emiratesnbd.com/en/accounts/current-accounts/standard-current-account" not in urls
+
+
+def test_comparison_intent_difference_in_phrasing():
+    """'difference in X and Y' must route to COMPARISON intent."""
+    state: ChatState = {
+        "standalone_query": "difference in U By Emaar Signature Credit Card and Visa Flexi Credit Card",
+    }
+    result = router_node(state)
+    assert result["intent"] == "COMPARISON"
+    assert len(result.get("sub_queries", [])) >= 2
+    assert "U By Emaar Signature Credit Card" in result.get("products_in_context", [])
+    assert "Visa Flexi Credit Card" in result.get("products_in_context", [])
+
+
+def test_followup_both_comparison_resolution():
+    """'i want both difference' with two products in history must rewrite to explicit comparison."""
+    state: ChatState = {
+        "raw_query": "i want both difference",
+        "messages": [
+            {"role": "user", "content": "tell me about U By Emaar Signature Credit Card"},
+            {"role": "assistant", "content": "Here is what you need to know about U By Emaar Signature Credit Card..."},
+            {"role": "user", "content": "what about Visa Flexi Credit Card"},
+            {"role": "assistant", "content": "Here is what you need to know about Visa Flexi Credit Card..."},
+        ],
+    }
+    result = rewrite_query_node(state)
+    resolved = result["standalone_query"].lower()
+    assert "u by emaar" in resolved
+    assert "visa flexi" in resolved
+    assert "compare" in resolved
+
+
+def test_about_emiratesnbd_routes_to_about():
+    """'about emiratesnbd' must route to ABOUT intent, not FACT."""
+    for q in ["about emiratesnbd", "about emirates nbd", "tell me about emirates nbd", "what is emirates nbd"]:
+        state: ChatState = {"standalone_query": q}
+        result = router_node(state)
+        assert result["intent"] == "ABOUT"
+
+
+@pytest.mark.asyncio
+async def test_end_to_end_user_reported_flow():
+    """Verify end-to-end user reported flow: about bank -> difference in cards -> both follow-up."""
+    from app.graph.workflow import run_chat_turn
+
+    # 1. Bank overview query
+    resp1 = await run_chat_turn("about emiratesnbd")
+    assert resp1.answerable is True
+    assert resp1.intent == "ABOUT"
+    assert "Emirates NBD" in resp1.answer
+    assert "Product Categories" in resp1.answer
+    assert "Credit Cards" in resp1.answer
+
+    # 2. Comparison using 'difference in'
+    resp2 = await run_chat_turn("difference in U By Emaar Signature Credit Card and Visa Flexi Credit Card")
+    assert resp2.answerable is True
+    assert resp2.intent == "COMPARISON"
+    assert "| Feature / Detail |" in resp2.answer
+    assert "U By Emaar Signature Credit Card" in resp2.answer
+    assert "Visa Flexi Credit Card" in resp2.answer
+
+    # 3. Follow-up: 'i want both difference'
+    history = [
+        {"role": "user", "content": "difference in U By Emaar Signature Credit Card and Visa Flexi Credit Card"},
+        {"role": "assistant", "content": resp2.answer},
+    ]
+    resp3 = await run_chat_turn("i want both difference", messages=history)
+    assert resp3.answerable is True
+    assert resp3.intent == "COMPARISON"
+    assert "| Feature / Detail |" in resp3.answer
+    assert "U By Emaar Signature Credit Card" in resp3.answer
+    assert "Visa Flexi Credit Card" in resp3.answer
+    assert "AED 262.50" in resp3.answer or "Free for Life" in resp3.answer
