@@ -63,6 +63,30 @@ def chunk_document(
     governing_kfs = product_meta.get("governing_kfs", "") if product_meta else ""
     relations = product_meta.get("relations", {}) if product_meta else {}
 
+    # Strict metadata tagging
+    url_lower = url.lower()
+    is_index = (
+        url_lower.rstrip("/").endswith("/cards/credit-cards")
+        or url_lower.rstrip("/").endswith("/cards/debit-cards")
+        or url_lower.rstrip("/").endswith("/cards/commercial-cards")
+        or url_lower.rstrip("/").endswith("/accounts/current-accounts")
+        or url_lower.rstrip("/").endswith("/accounts/savings-accounts")
+        or url_lower.rstrip("/").endswith("/en/cards")
+        or url_lower.rstrip("/").endswith("/en/accounts")
+    )
+    is_deal = "deals" in url_lower or "lifestyle" in url_lower
+    is_legacy = (
+        "legacy" in url_lower
+        or (product_meta and product_meta.get("status") == "legacy")
+        or "manchester united savings" in product_name.lower()
+    )
+
+    doc_type = product_meta.get("doc_type") if product_meta and "doc_type" in product_meta else ("category_index" if is_index else ("promo_offer" if is_deal else "product_detail"))
+    status = product_meta.get("status") if product_meta and "status" in product_meta else ("legacy" if is_legacy else "active")
+    legacy_note = product_meta.get("legacy_note") if product_meta and "legacy_note" in product_meta else ("New openings discontinued effective June 1, 2025" if is_legacy else "")
+
+    prefix = f"[Product: {product_name} | Category: {category} | Status: {status}]"
+
     sections = split_into_heading_sections(clean_md)
     chunks: List[Dict[str, Any]] = []
     chunk_idx = 0
@@ -73,7 +97,7 @@ def chunk_document(
 
         # If section is small, keep it as a single chunk
         if estimate_tokens(sec_content) <= max_tokens:
-            chunk_text = f"Product: {product_name} > {sec_title}\n\n{sec_content}"
+            chunk_text = f"{prefix}\nProduct: {product_name} > {sec_title}\n\n{sec_content}"
             chunk_hash = hashlib.sha256(chunk_text.encode("utf-8")).hexdigest()[:16]
             chunk_id = f"{product_id or 'doc'}-{chunk_idx}"
             chunks.append({
@@ -86,8 +110,12 @@ def chunk_document(
                 "governing_kfs": governing_kfs,
                 "relations": relations,
                 "category": category,
+                "doc_type": doc_type,
+                "status": status,
+                "legacy_note": legacy_note,
                 "section_path": sec_title,
                 "url": url,
+                "source_url": url,
                 "title": title,
                 "crawled_at": crawled_at,
                 "content_hash": chunk_hash,
@@ -104,7 +132,7 @@ def chunk_document(
                 p_tokens = estimate_tokens(p)
                 if curr_tokens + p_tokens > max_tokens and accumulated:
                     combined = "\n\n".join(accumulated).strip()
-                    chunk_text = f"Product: {product_name} > {sec_title}\n\n{combined}"
+                    chunk_text = f"{prefix}\nProduct: {product_name} > {sec_title}\n\n{combined}"
                     chunk_hash = hashlib.sha256(chunk_text.encode("utf-8")).hexdigest()[:16]
                     chunk_id = f"{product_id or 'doc'}-{chunk_idx}"
                     chunks.append({
@@ -117,8 +145,12 @@ def chunk_document(
                         "governing_kfs": governing_kfs,
                         "relations": relations,
                         "category": category,
+                        "doc_type": doc_type,
+                        "status": status,
+                        "legacy_note": legacy_note,
                         "section_path": sec_title,
                         "url": url,
+                        "source_url": url,
                         "title": title,
                         "crawled_at": crawled_at,
                         "content_hash": chunk_hash,
@@ -133,7 +165,7 @@ def chunk_document(
 
             if accumulated:
                 combined = "\n\n".join(accumulated).strip()
-                chunk_text = f"Product: {product_name} > {sec_title}\n\n{combined}"
+                chunk_text = f"{prefix}\nProduct: {product_name} > {sec_title}\n\n{combined}"
                 chunk_hash = hashlib.sha256(chunk_text.encode("utf-8")).hexdigest()[:16]
                 chunk_id = f"{product_id or 'doc'}-{chunk_idx}"
                 chunks.append({
@@ -146,8 +178,12 @@ def chunk_document(
                     "governing_kfs": governing_kfs,
                     "relations": relations,
                     "category": category,
+                    "doc_type": doc_type,
+                    "status": status,
+                    "legacy_note": legacy_note,
                     "section_path": sec_title,
                     "url": url,
+                    "source_url": url,
                     "title": title,
                     "crawled_at": crawled_at,
                     "content_hash": chunk_hash,

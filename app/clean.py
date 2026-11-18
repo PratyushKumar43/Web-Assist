@@ -1,7 +1,7 @@
 """Cleaning and text normalization module for scraped bank content."""
 
 import re
-from typing import Optional
+from typing import List, Optional
 
 
 def normalize_currency(text: str) -> str:
@@ -13,6 +13,73 @@ def normalize_currency(text: str) -> str:
     # Clean up redundant spaces around AED
     normalized = re.sub(r"AED\s+", "AED ", normalized)
     return normalized
+
+
+def strip_ui_noise_and_counters(text: str) -> str:
+    """Strip UI counters, interactive button labels, and navigation noise."""
+    # Strip counters like "All accounts (10)", "All cards (7)", etc.
+    text = re.sub(r"(?i)\bAll\s+(?:accounts|cards|products|loans|services)\s*\(\d+\)", "", text)
+    # Strip standalone UI action buttons
+    text = re.sub(r"(?i)^\s*(?:Apply\s+Now|Compare|Back\s+to\s+top|View\s+more|Read\s+more|Learn\s+more)\s*$", "", text, flags=re.MULTILINE)
+    # Strip cookie and privacy banners
+    text = re.sub(r"(?i)this website uses cookies.*?(?:accept|agree|got it|continue)", "", text, flags=re.DOTALL)
+    return text
+
+
+def strip_empty_table_pipes(text: str) -> str:
+    r"""Strip empty or malformed Markdown table rows matching ^\|\s*(\|\s*)+$."""
+    lines = text.splitlines()
+    cleaned_lines = []
+    for line in lines:
+        stripped = line.strip()
+        # Remove lines that contain only pipes and whitespace
+        if re.match(r"^\|\s*(\|\s*)+$", stripped):
+            continue
+        cleaned_lines.append(line)
+    return "\n".join(cleaned_lines)
+
+
+def convert_tables_to_prose(text: str) -> str:
+    """Convert complex Markdown tables into self-contained row-level natural language sentences.
+
+    Ensures that when chunking occurs, row context (headers and specifications) is never
+    lost across arbitrary chunk boundaries.
+    """
+    lines = text.splitlines()
+    output_lines: List[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        # Detect table header row followed by delimiter row
+        if (
+            line.strip().startswith("|")
+            and line.strip().endswith("|")
+            and i + 1 < len(lines)
+            and re.match(r"^\|\s*(?::?-+:?\s*\|)+\s*$", lines[i + 1].strip())
+        ):
+            header_raw = line.strip().split("|")[1:-1]
+            headers = [h.strip() for h in header_raw]
+            i += 2  # skip header and delimiter
+
+            table_rows: List[str] = []
+            while i < len(lines) and lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
+                row_line = lines[i].strip()
+                if not re.match(r"^\|\s*(\|\s*)+$", row_line):
+                    cells = [c.strip() for c in row_line.split("|")[1:-1]]
+                    if len(cells) == len(headers) and any(cells):
+                        row_parts = [f"{h}: {c}" for h, c in zip(headers, cells) if c and c != "---"]
+                        if row_parts:
+                            table_rows.append(" | ".join(row_parts) + ".")
+                i += 1
+
+            if table_rows:
+                output_lines.extend(table_rows)
+            continue
+
+        output_lines.append(line)
+        i += 1
+
+    return "\n".join(output_lines)
 
 
 def strip_boilerplate(markdown_text: str) -> str:
@@ -42,18 +109,27 @@ def strip_boilerplate(markdown_text: str) -> str:
         if pos != -1:
             text = text[:pos]
 
-    # 4. Clean excessive whitespace and empty lines
+    # 4. Strip UI noise and navigation counters
+    text = strip_ui_noise_and_counters(text)
+
+    # 5. Clean empty table pipe rows
+    text = strip_empty_table_pipes(text)
+
+    # 6. Clean excessive whitespace and empty lines
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
     return text
 
 
-def clean_page_content(raw_markdown: str) -> str:
+def clean_scraped_markdown(raw_markdown: str, convert_tables: bool = False) -> str:
     """Perform full sanitization pipeline on scraped page content."""
     if not raw_markdown:
         return ""
     cleaned = strip_boilerplate(raw_markdown)
+    if convert_tables:
+        cleaned = convert_tables_to_prose(cleaned)
     return cleaned
 
 
-# Alias for backwards compatibility and readability
-clean_markdown = clean_page_content
+# Aliases for backwards compatibility and readability
+clean_page_content = clean_scraped_markdown
+clean_markdown = clean_scraped_markdown

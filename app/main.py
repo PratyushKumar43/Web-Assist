@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
+from app.diagnostics import diagnostics_router
 from app.graph.nodes import load_catalog_data
 from app.graph.workflow import run_chat_turn
 from app.models import ChatRequest, ChatResponse, HealthResponse, ProductItem
@@ -30,6 +31,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount developer diagnostic & testing endpoints for Swagger UI
+app.include_router(diagnostics_router)
 
 # In-memory session conversational histories
 _sessions: Dict[str, List[Dict[str, str]]] = {}

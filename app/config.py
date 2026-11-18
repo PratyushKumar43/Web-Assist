@@ -31,7 +31,20 @@ class Settings(BaseSettings):
         description="Polite request rate limit in seconds between requests.",
     )
 
-    # 2. LLM Providers (OpenRouter / Google Gemini)
+    # 2. LLM Providers (xAI Grok / Google Gemini / OpenRouter)
+    XAI_API_KEY: Optional[str] = Field(
+        default=None,
+        description="xAI API key for Grok models (https://console.x.ai/).",
+    )
+    XAI_MODEL: str = Field(
+        default="grok-2-latest",
+        description="xAI Grok model name (e.g., grok-2-latest, grok-beta).",
+    )
+    XAI_BASE_URL: str = Field(
+        default="https://api.x.ai/v1",
+        description="xAI API base endpoint.",
+    )
+
     OPENROUTER_API_KEY: Optional[str] = Field(
         default=None,
         description="OpenRouter API key for free/commercial LLMs (https://openrouter.ai/).",
