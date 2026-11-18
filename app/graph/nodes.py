@@ -43,7 +43,7 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
         return {"standalone_query": raw_query}
 
     pronoun_pattern = re.compile(
-        r"\b(it|its|this|that|these|those|them|the card|the account|both of them)\b",
+        r"\b(this account|that account|the account|this card|that card|the card|both of them|it|its|this|that|these|those|them)\b",
         re.IGNORECASE,
     )
 
@@ -246,6 +246,38 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
         retrieved_chunks = await loop.run_in_executor(
             None, indexer.hybrid_search, standalone_query, settings.TOP_K
         )
+
+        # Multi-Hop Relational Knowledge Graph Traversal
+        from app.relations import resolve_entity_by_text, format_relational_context_chunk
+        entity = resolve_entity_by_text(standalone_query)
+        query_lower = standalone_query.lower()
+        inherited_triggers = [
+            "minimum balance", "min balance", "minimum average", "average balance",
+            "fall below", "fall-below", "maintenance fee", "fees", "fee", "charge", "charges",
+            "salary requirement", "requirement", "terms", "rules", "rate", "interest",
+        ]
+        needs_policy = any(t in query_lower for t in inherited_triggers)
+
+        if entity and needs_policy:
+            rel_chunk = format_relational_context_chunk(entity["id"])
+            if rel_chunk:
+                retrieved_chunks.insert(0, rel_chunk)
+
+            # Ensure governing KFS chunk is included if available
+            if not any("kfs" in c.get("url", "").lower() for c in retrieved_chunks):
+                kfs_results = await loop.run_in_executor(
+                    None, indexer.hybrid_search, f"Key Facts Statement KFS minimum balance {entity.get('name', '')}", 2
+                )
+                for kc in kfs_results:
+                    if "kfs" in kc.get("url", "").lower() or "cash" in kc.get("url", "").lower():
+                        retrieved_chunks.append(kc)
+                        break
+
+        elif ("account" in query_lower or "accounts" in query_lower) and needs_policy:
+            # General account minimum balance / fee inquiry across Emirates NBD
+            rel_chunk = format_relational_context_chunk("kfs-cash-accounts") or format_relational_context_chunk("standard-current-account")
+            if rel_chunk and not any(c.get("chunk_id") == rel_chunk.get("chunk_id") for c in retrieved_chunks):
+                retrieved_chunks.insert(0, rel_chunk)
 
     # Compute max relevance score
     max_score = 0.0
@@ -458,6 +490,7 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
                 "Answer the user's question clearly, helpfully, and conversationally strictly based on the provided context chunks. "
                 "Do not extrapolate, guess, or invent fees, interest rates, or eligibility rules. "
                 "Format your answer cleanly with bullet points, fees, eligibility, and features where appropriate. "
+                "When answering inquiries about account minimum balance, maintenance fees, or requirements for promotional/specialized accounts (such as the Millionaire Account), explain both its specific features (e.g. prize draws) and its governing baseline terms from Emirates NBD's Key Facts Statement (KFS) / Personal Banking Classic Package (e.g. minimum monthly average balance of AED 3,000, or AED 5,000 for standard digital savings, and AED 26.25 monthly fall-below fee with salary transfer exemptions). "
                 "If the context does not contain sufficient information to answer the question, state politely that the information is not specified in current official Emirates NBD records."
             )
             user_prompt = f"""<retrieved_context>
@@ -494,7 +527,8 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
                                 matched_ids = [
                                     c.get("chunk_id")
                                     for c in chunks
-                                    if c.get("product_name") and c.get("product_name").lower() in ans_clean.lower()
+                                    if (c.get("product_name") and any(term in ans_clean.lower() for term in c.get("product_name").lower().split() if len(term) > 3))
+                                    or (c.get("is_relational") and any(term in ans_clean.lower() for term in ["key facts", "kfs", "policy", "classic", "fall-below", "fall below", "minimum balance", "3,000", "5,000"]))
                                 ]
                                 used_ids = matched_ids if matched_ids else [c.get("chunk_id") for c in chunks[:3] if c.get("chunk_id")]
                                 return {

@@ -58,6 +58,10 @@ def chunk_document(
     product_name = product_meta.get("name", title.split("|")[0].strip()) if product_meta else title.split("|")[0].strip()
     product_id = product_meta.get("product_id", "") if product_meta else ""
     category = product_meta.get("category", "General") if product_meta else "General"
+    entity_id = product_meta.get("entity_id", product_id) if product_meta else product_id
+    parent_id = product_meta.get("parent_id", "") if product_meta else ""
+    governing_kfs = product_meta.get("governing_kfs", "") if product_meta else ""
+    relations = product_meta.get("relations", {}) if product_meta else {}
 
     sections = split_into_heading_sections(clean_md)
     chunks: List[Dict[str, Any]] = []
@@ -77,6 +81,10 @@ def chunk_document(
                 "chunk_index": chunk_idx,
                 "product_id": product_id,
                 "product_name": product_name,
+                "entity_id": entity_id,
+                "parent_id": parent_id,
+                "governing_kfs": governing_kfs,
+                "relations": relations,
                 "category": category,
                 "section_path": sec_title,
                 "url": url,
@@ -104,6 +112,10 @@ def chunk_document(
                         "chunk_index": chunk_idx,
                         "product_id": product_id,
                         "product_name": product_name,
+                        "entity_id": entity_id,
+                        "parent_id": parent_id,
+                        "governing_kfs": governing_kfs,
+                        "relations": relations,
                         "category": category,
                         "section_path": sec_title,
                         "url": url,
@@ -129,6 +141,10 @@ def chunk_document(
                     "chunk_index": chunk_idx,
                     "product_id": product_id,
                     "product_name": product_name,
+                    "entity_id": entity_id,
+                    "parent_id": parent_id,
+                    "governing_kfs": governing_kfs,
+                    "relations": relations,
                     "category": category,
                     "section_path": sec_title,
                     "url": url,

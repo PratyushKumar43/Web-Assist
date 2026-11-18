@@ -2,12 +2,32 @@
   {
     "product_id": "millionaire-account",
     "name": "Millionaire Account",
-    "category": "Banking Services",
-    "url": "https://www.emiratesnbd.com/en",
-    "summary": "[Apply now](https://www.emiratesnbd.com/en/campaigns/millionaire-accounts?utm_source=Organic-google \"Apply now\")",
-    "annual_fee": null,
-    "joining_fee": null,
-    "min_requirement": null
+    "category": "Savings Accounts",
+    "url": "https://www.emiratesnbd.com/en/campaigns/millionaire-accounts",
+    "summary": "Specialized savings prize account offering entries into quarterly draws of AED 1,000,000 and monthly prize draws.",
+    "annual_fee": "None",
+    "joining_fee": "None",
+    "min_requirement": "AED 3,000 monthly average relationship balance (AED 5,000 for digital savings variant)"
+  },
+  {
+    "product_id": "standard-current-account",
+    "name": "Standard Current Account",
+    "category": "Current Accounts",
+    "url": "https://www.emiratesnbd.com/en/accounts/current-accounts/standard-current-account",
+    "summary": "Standard day-to-day transactional bank account with cheque book, debit card, and digital banking access.",
+    "annual_fee": "None",
+    "joining_fee": "None",
+    "min_requirement": "AED 3,000 minimum monthly average balance (or AED 5,000 salary transfer)"
+  },
+  {
+    "product_id": "standard-savings-account",
+    "name": "Standard Savings Account",
+    "category": "Savings Accounts",
+    "url": "https://www.emiratesnbd.com/en/accounts/savings-accounts/savings-account",
+    "summary": "Digital savings account earning interest with flexible access to funds and instant account opening.",
+    "annual_fee": "None",
+    "joining_fee": "None",
+    "min_requirement": "AED 5,000 minimum balance (or AED 3,000 under Classic package)"
   },
   {
     "product_id": "corporate-virtual-mobile-card",
@@ -30,16 +50,6 @@
     "min_requirement": "Minimum Salary: AED 12,000"
   },
   {
-    "product_id": "cardless-cash-withdrawal",
-    "name": "Cardless cash withdrawal",
-    "category": "Credit Cards",
-    "url": "https://www.emiratesnbd.com/en/help-and-support/cardless-cash-withdrawal",
-    "summary": "Download our mobile app and withdraw cash from any of our ATMs even without your debit card",
-    "annual_fee": null,
-    "joining_fee": null,
-    "min_requirement": null
-  },
-  {
     "product_id": "gold-savings-certificate",
     "name": "Gold Savings Certificate",
     "category": "Wealth & Investments",
@@ -48,5 +58,25 @@
     "annual_fee": null,
     "joining_fee": null,
     "min_requirement": "Starting from 100 grams"
+  },
+  {
+    "product_id": "cardless-cash-withdrawal",
+    "name": "Cardless cash withdrawal",
+    "category": "Banking Services",
+    "url": "https://www.emiratesnbd.com/en/help-and-support/cardless-cash-withdrawal",
+    "summary": "Download our mobile app and withdraw cash from any of our ATMs even without your debit card",
+    "annual_fee": null,
+    "joining_fee": null,
+    "min_requirement": null
+  },
+  {
+    "product_id": "key-facts-statement-kfs-cash",
+    "name": "Key Facts Statement (KFS) - Current and Savings Accounts",
+    "category": "Regulatory Disclosures",
+    "url": "https://www.emiratesnbd.com/en/KFS/cash",
+    "summary": "Official Key Facts Statement detailing indicative interest rates, packages, minimum balance requirements (AED 3,000 / AED 5,000), and AED 26.25 monthly fall-below fee.",
+    "annual_fee": null,
+    "joining_fee": null,
+    "min_requirement": "AED 3,000 monthly average relationship balance"
   }
 ]

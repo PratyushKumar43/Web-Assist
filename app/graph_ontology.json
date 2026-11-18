@@ -1,0 +1,194 @@
+{
+  "entities": {
+    "packages": [
+      {
+        "id": "package-classic",
+        "name": "Personal Banking Classic",
+        "description": "Standard retail banking package for individual salaried and non-salaried customers.",
+        "min_salary": "None (or AED 5,000 for payroll benefits)",
+        "min_average_balance": "AED 3,000",
+        "fall_below_fee": "AED 26.25 per month (inclusive of VAT)",
+        "exemptions": [
+          "Monthly salary transfer of AED 5,000 or more",
+          "Youth Package customers (students/young adults)",
+          "UAE National package customers",
+          "Customers maintaining active personal/auto/home loans or overdraft facilities"
+        ]
+      },
+      {
+        "id": "package-plus",
+        "name": "Personal Banking Plus",
+        "min_salary": "AED 10,000",
+        "min_average_balance": "AED 25,000",
+        "fall_below_fee": "AED 52.50 per month (inclusive of VAT)"
+      },
+      {
+        "id": "package-beyond",
+        "name": "Personal Banking Beyond",
+        "min_salary": "AED 15,000",
+        "min_relationship_balance": "AED 100,000",
+        "fall_below_fee": "AED 105 per month (inclusive of VAT)"
+      },
+      {
+        "id": "package-priority",
+        "name": "Priority Banking",
+        "min_salary": "AED 50,000",
+        "min_relationship_balance": "AED 500,000",
+        "fall_below_fee": "AED 367.50 per month (inclusive of VAT)"
+      }
+    ],
+    "policies": [
+      {
+        "id": "kfs-cash-accounts",
+        "title": "Key Facts Statement (KFS) - Current and Savings Accounts",
+        "url": "https://www.emiratesnbd.com/en/KFS/cash",
+        "category": "Regulatory Disclosures",
+        "standard_min_balance": "AED 3,000 monthly average relationship balance across standard Classic accounts",
+        "digital_savings_min_balance": "AED 5,000 monthly average balance for standard digital savings account",
+        "fall_below_fee": "AED 26.25 per month (inclusive of 5% VAT)",
+        "terms_summary": "Customers are required to maintain a minimum monthly average relationship balance of AED 3,000 under Personal Banking Classic. If the balance falls below AED 3,000, a monthly maintenance/fall-below fee of AED 26.25 applies. This fee is waived for payroll customers receiving AED 5,000+ monthly salary, UAE Nationals, Youth accounts, and active loan borrowers."
+      },
+      {
+        "id": "rates-and-charges",
+        "title": "Personal Banking Schedule of Charges",
+        "url": "https://www.emiratesnbd.com/en/help-and-support/rates-and-charges",
+        "category": "Schedule of Charges",
+        "terms_summary": "Comprehensive schedule of fees, charges, transaction tariffs, fall-below rates, and foreign exchange margins for Emirates NBD retail banking products in the UAE."
+      }
+    ],
+    "categories": [
+      {
+        "id": "current-accounts",
+        "name": "Current Accounts",
+        "url": "https://www.emiratesnbd.com/en/accounts/current-accounts",
+        "governing_kfs": "kfs-cash-accounts",
+        "default_package": "package-classic",
+        "default_min_balance": "AED 3,000",
+        "default_fall_below_fee": "AED 26.25 per month"
+      },
+      {
+        "id": "savings-accounts",
+        "name": "Savings Accounts",
+        "url": "https://www.emiratesnbd.com/en/accounts/savings-accounts",
+        "governing_kfs": "kfs-cash-accounts",
+        "default_package": "package-classic",
+        "default_min_balance": "AED 3,000 (AED 5,000 for digital savings variant)",
+        "default_fall_below_fee": "AED 26.25 per month"
+      },
+      {
+        "id": "credit-cards",
+        "name": "Credit Cards",
+        "url": "https://www.emiratesnbd.com/en/cards/credit-cards",
+        "governing_kfs": "kfs-cards",
+        "default_package": null
+      },
+      {
+        "id": "wealth-investments",
+        "name": "Wealth & Investments",
+        "url": "https://www.emiratesnbd.com/en/wealth",
+        "governing_kfs": "kfs-wealth",
+        "default_package": null
+      }
+    ],
+    "products": [
+      {
+        "id": "millionaire-account",
+        "name": "Millionaire Account",
+        "url": "https://www.emiratesnbd.com/en/campaigns/millionaire-accounts",
+        "category_id": "savings-accounts",
+        "package_id": "package-classic",
+        "governing_kfs": "kfs-cash-accounts",
+        "summary": "Specialized savings prize account offering entries into quarterly draws of AED 1,000,000 and monthly prize draws.",
+        "promotional_features": "Earn chances to win quarterly prizes of AED 1,000,000, monthly prizes of AED 10,000, plus special booster certificates.",
+        "inherited_terms": {
+          "min_monthly_balance": "AED 3,000 (minimum monthly average balance under Personal Banking Classic terms)",
+          "digital_savings_min_balance": "AED 5,000 (if opened as standard digital savings variant)",
+          "fall_below_fee": "AED 26.25 per month (inclusive of VAT)",
+          "salary_waiver": "AED 5,000 monthly salary transfer waives the fall-below fee",
+          "governing_document": "Key Facts Statement (KFS) - Current and Savings Accounts (https://www.emiratesnbd.com/en/KFS/cash)"
+        }
+      },
+      {
+        "id": "standard-current-account",
+        "name": "Standard Current Account",
+        "url": "https://www.emiratesnbd.com/en/accounts/current-accounts/standard-current-account",
+        "category_id": "current-accounts",
+        "package_id": "package-classic",
+        "governing_kfs": "kfs-cash-accounts",
+        "summary": "Standard day-to-day transactional bank account with cheque book, debit card, and digital banking access.",
+        "annual_fee": "None",
+        "joining_fee": "None",
+        "min_requirement": "AED 3,000 minimum monthly average balance (or AED 5,000 salary transfer)",
+        "inherited_terms": {
+          "min_monthly_balance": "AED 3,000",
+          "fall_below_fee": "AED 26.25 per month (inclusive of VAT)",
+          "salary_waiver": "AED 5,000 salary transfer waives fall-below fee"
+        }
+      },
+      {
+        "id": "standard-savings-account",
+        "name": "Standard Savings Account",
+        "url": "https://www.emiratesnbd.com/en/accounts/savings-accounts/savings-account",
+        "category_id": "savings-accounts",
+        "package_id": "package-classic",
+        "governing_kfs": "kfs-cash-accounts",
+        "summary": "Digital savings account earning interest with flexible access to funds and instant account opening.",
+        "annual_fee": "None",
+        "joining_fee": "None",
+        "min_requirement": "AED 5,000 minimum balance (or AED 3,000 under Classic package)",
+        "inherited_terms": {
+          "min_monthly_balance": "AED 5,000 (digital) / AED 3,000 (classic)",
+          "fall_below_fee": "AED 26.25 per month (inclusive of VAT)"
+        }
+      },
+      {
+        "id": "u-by-emaar-signature-credit-card",
+        "name": "U By Emaar Signature Credit Card",
+        "url": "https://www.emiratesnbd.com/en/cards/credit-cards/u-by-emaar-signature-credit-card",
+        "category_id": "credit-cards",
+        "package_id": null,
+        "governing_kfs": "kfs-cards",
+        "summary": "Co-branded credit card offering exclusive lifestyle and hospitality rewards across Emaar destinations.",
+        "annual_fee": "AED 262.50",
+        "joining_fee": "AED 525",
+        "min_requirement": "Minimum Salary: AED 12,000"
+      },
+      {
+        "id": "corporate-virtual-mobile-card",
+        "name": "Corporate Virtual Mobile Card",
+        "url": "https://www.emiratesnbd.com/en/cards/commercial-cards/corporate-virtual-mobile-card",
+        "category_id": "commercial-cards",
+        "package_id": null,
+        "governing_kfs": "kfs-commercial-cards",
+        "summary": "Virtual commercial payment solution with programmable corporate spend limits and reporting.",
+        "annual_fee": "None/Not Specified",
+        "joining_fee": "None/Not Specified",
+        "min_requirement": "N/A"
+      },
+      {
+        "id": "gold-savings-certificate",
+        "name": "Gold Savings Certificate",
+        "url": "https://www.emiratesnbd.com/en/wealth/gold-savings-certificate",
+        "category_id": "wealth-investments",
+        "package_id": null,
+        "governing_kfs": "kfs-wealth",
+        "summary": "Paperless gold investment certificate starting from 100 grams of 999.9 pure gold held in bank secure vaults.",
+        "annual_fee": "None/Not Specified",
+        "joining_fee": "None/Not Specified",
+        "min_requirement": "Starting from 100 grams (999.9 fineness)"
+      },
+      {
+        "id": "cardless-cash-withdrawal",
+        "name": "Cardless cash withdrawal",
+        "url": "https://www.emiratesnbd.com/en/help-and-support/cardless-cash-withdrawal",
+        "category_id": "banking-services",
+        "package_id": null,
+        "governing_kfs": null,
+        "summary": "Mobile banking feature allowing ATM cash withdrawals using a one-time passcode generated on the mobile app.",
+        "annual_fee": "None",
+        "joining_fee": "None",
+        "min_requirement": "N/A"
+      }
+    ]
+  }
+}
