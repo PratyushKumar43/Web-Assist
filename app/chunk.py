@@ -39,6 +39,21 @@ def split_into_heading_sections(markdown: str) -> List[Dict[str, str]]:
     return sections
 
 
+def clean_title_product_name(title: str) -> str:
+    """Derive a clean product name from a page <title>, never from raw headings."""
+    raw_title = (title or "").split("|")[0].strip()
+    # Strip accessibility / navigation banners that leak into the title
+    raw_title = re.sub(
+        r"(?i)^(?:skip\s+to\s+main\s+content|enable\s+accessibility(?:\s+for\s+low\s+vision)?)\s*",
+        "",
+        raw_title,
+    ).strip()
+    # Strip trailing site-name suffixes
+    raw_title = re.sub(r"(?i)\s*[-–—:]?\s*emirates\s*nbd\s*$", "", raw_title).strip()
+    raw_title = re.sub(r"(?i)\s*[-–—:]?\s*emiratesnbd\s*$", "", raw_title).strip()
+    return raw_title
+
+
 def chunk_document(
     page: Dict[str, Any],
     product_meta: Optional[Dict[str, Any]] = None,
@@ -55,7 +70,9 @@ def chunk_document(
     title = page.get("title", "")
     crawled_at = page.get("crawled_at", "")
 
-    product_name = product_meta.get("name", title.split("|")[0].strip()) if product_meta else title.split("|")[0].strip()
+    title_name = clean_title_product_name(title)
+    product_name = ((product_meta.get("name") or title_name) if product_meta else title_name) or "Unknown Product"
+
     product_id = product_meta.get("product_id", "") if product_meta else ""
     category = product_meta.get("category", "General") if product_meta else "General"
     entity_id = product_meta.get("entity_id", product_id) if product_meta else product_id

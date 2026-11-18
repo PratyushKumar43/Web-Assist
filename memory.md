@@ -13,15 +13,17 @@
 
 ## 2. Current Status
 
-- **Current Phase**: All Phases (0 through 7) Complete, Tested & Verified.
+- **Current Phase**: All Phases (0 through 9) Complete, Tested & Verified.
 - **Last Exit Checks Passed**:
   - **Phase 1**: Resilient crawler (Firecrawl + TinyFish failover) verified live on target banking site.
   - **Phase 2**: Automated catalog extraction compiled into `data/products_catalog.json` and `app/catalog.json`. Coverage audit report generated in `data/coverage_report.md`.
-  - **Phase 3**: Heading-aware chunker with contextual breadcrumbs and UAE Dirham normalization (`\uEAEF` -> `AED`). 104 chunks indexed into Qdrant Cloud hybrid collection `site_kb`.
+  - **Phase 3**: Heading-aware chunker with contextual breadcrumbs and UAE Dirham normalization (`\uEAEF` -> `AED`). Live hybrid collection `site_kb` currently holds **208 points** (seed product chunks + deep-crawl hub chunks + 9 synthetic catalog anchors) with a keyword payload index on `category`.
   - **Phase 4**: LangGraph conversational workflow (`app/graph/`) handling all 5 question types (Fact, Discovery, Comparison, Follow-up, Fallback). Tier 4 numeric fact verification and Tier 5 citation synthesis active.
-  - **Phase 5**: Zero-Build Chat UI in `static/index.html` with Tailwind CSS, Marked.js, DOMPurify, Covered Products Drawer, and citation badges.
-  - **Phase 6**: 15-Question Golden Eval Benchmark (`scripts/run_eval.py`) achieving **100% pass rate** (15/15) with 0.31s average latency. Full test suite passing 29/29 tests (`pytest tests/ -v`).
+  - **Phase 5**: Zero-Build Chat UI in `static/index.html` (rebuilt in Phase 9 as a single-file WhatsApp-style shell).
+  - **Phase 6**: 15-Question Golden Eval Benchmark (`scripts/run_eval.py`) achieving **100% pass rate** (15/15) with ~0.66s average latency.
   - **Phase 7**: Comprehensive 4-6 page Technical Report (`docs/technical_report.md`), 5-minute video demonstration script (`docs/demo_script.md`), and comprehensive `README.md`.
+  - **Phase 8 (post-launch hardening)**: Four verified live failure modes fixed - intent misclassification, conversational memory loss, DOM/UI noise pollution, and single-document discovery collapse. Full suite **69/69 tests passing**; golden eval **15/15**. Live index pruned of 21 UI-noise points (229 -> 208).
+  - **Phase 9 (UI redesign)**: `static/index.html` replaced with a WhatsApp-style shell and the browser now renders a server-built view model (`POST /api/chat/ui`) instead of markdown. Added `app/ui_view.py`, `UIChatResponse`/`UICard`/`UISpec`/feedback schemas, `POST /api/feedback`. Full suite **78/78 tests passing**; no index mutation.
 - **Git Remote**: `https://github.com/PratyushKumar43/Web-Assist.git` (origin configured).
 - **Server CLI**: `fastapi dev app/main.py`
 - **Stateless Vercel Parity**: Verified. No local SQLite dependency at runtime; Qdrant vector payloads provide full metadata and text.
@@ -43,8 +45,18 @@
 | **Primary Ingestion** | Firecrawl API (`map` + `scrape`) | High quality markdown table preservation; politeness checks via `urllib.robotparser` |
 | **Fallback Ingestion** | TinyFish AI TinyFetch (`https://www.tinyfish.ai/`) | Headless browser rendering, boilerplate removal, reliable failover scraper |
 | **Deployment** | Vercel Serverless (`vercel.json`) | 100% stateless serverless runtime; local SQLite eliminated from request path |
-| **UI** | Zero-Build HTML/JS (`static/index.html`) | Tailwind CSS CDN + Marked.js CDN; zero npm dependencies |
+| **UI** | Zero-Build HTML/JS (`static/index.html`) | Single file, inline CSS + vanilla JS, no CDN and no npm; loads with zero third-party runtime dependencies |
+| **UI Response Shape** | `POST /api/chat/ui` -> `UIChatResponse` (`app/ui_view.py`) | The browser draws typed blocks (intro/specs/cards/bullets/sources/chips) and never parses markdown, so it cannot display an unverified figure |
+| **UI Answer Contract** | `POST /api/chat` -> `ChatResponse` unchanged | Keeps the canonical answer/citation contract for tests, eval and API consumers; the view model is an additive projection |
+| **Answer Feedback** | `POST /api/feedback` -> `data/feedback.jsonl` | Records `interaction_id` + rating for offline review; deliberately does not train, cache or mutate the index |
 | **Agent Behavior** | Context7 MCP + `agent.md` | Mandatory live doc lookup before coding; rapid zero-token handoff between models |
+| **Follow-Up Continuity** | `BARE_CONTINUATION_RE` + `detect_active_category()` | "tell me all" / "yes" inherit the active banking category; affirmations only continue listing threads, otherwise the prior question is repeated |
+| **Discovery Routing** | Listing cue (`all` / `list` / `types of`) outranks attribute keywords | Keeps "list all credit cards with annual fees" in DISCOVERY instead of collapsing to FACT |
+| **Discovery Retrieval** | `top_k=20` + max 2 chunks per product + category filter pushdown | Stops a single index page from monopolising the discovery context window |
+| **Catalog Anchors** | Synthetic `general_catalog` chunks (`app/catalog_chunks.py`) | A whole-catalog document that matches "about your products" / "types of credit card" |
+| **Anchor Boundary** | Anchors excluded from `products_in_context`, FACT extraction and COMPARISON retrieval | Directory chunks are context, never a comparable product or a product fact |
+| **Comparison Subject Order** | The router's named pair wins; `products_in_context` deduped in retrieval order | Building it from a `set` made the compared pair depend on the process hash seed |
+| **Document Noise** | Feedback-widget/accessibility regexes + title-derived product names | Stops "Would you like to talk to us?" and nav text from becoming products |
 
 ---
 
@@ -54,6 +66,10 @@
 - `MIN_RELEVANCE_SCORE`: 0.35 (RRF fusion threshold for triggering fallback)
 - `SEMANTIC_SIMILARITY_MIN`: 0.65
 - `TOP_K`: 6 chunks per query (or 3+3 balanced chunks in comparison mode)
+- `DISCOVERY_TOP_K`: 20 candidates per discovery query
+- `DISCOVERY_MAX_CHUNKS_PER_PRODUCT`: 2 (dedup keeps the highest-scored chunks per product)
+- `CATALOG_ANCHOR_CHUNKS`: 9 (1 master overview + 8 per-category directories)
+- `CATEGORY_PAYLOAD_INDEX`: keyword index on `category` (created by `ensure_collection()`; retrieval falls back to unfiltered when absent)
 - `CHUNK_SIZE`: 300 to 600 tokens (heading-aware; tables kept unbroken)
 - `CRAWL_RATE_LIMIT`: 1 request per second
 - `STRICT_NUMBER_CHECK`: true
@@ -72,11 +88,13 @@
 | Clean & Normalizer | `app/clean.py` |
 | Product Catalog | `app/catalog.py`, `app/catalog.json`, `data/products_catalog.json` |
 | Contextual Chunker | `app/chunk.py` |
+| Catalog Anchor Chunks | `app/catalog_chunks.py` |
 | Qdrant Hybrid Indexer | `app/indexer.py` |
 | Master KB Builder | `scripts/build_kb.py` |
 | LangGraph State & Nodes | `app/graph/state.py`, `app/graph/nodes.py` |
 | LangGraph Workflow | `app/graph/workflow.py` |
 | FastAPI Application | `app/main.py` |
+| UI View Model Projection | `app/ui_view.py` |
 | Zero-Build Frontend | `static/index.html` |
 | Golden Eval Dataset | `tests/eval_set.json` |
 | Eval Benchmark Runner | `scripts/run_eval.py` |
@@ -100,5 +118,7 @@
 | 2026-11-18 | Phase 2 & 3: Clean, Catalog & Qdrant | Implemented `app/clean.py` (\uEAEF -> AED), `app/catalog.py`, `app/chunk.py`, and `app/indexer.py`. Executed `scripts.build_kb` against live Qdrant Cloud cluster, indexing 104 chunks. Coverage audit generated. 12/12 pipeline tests passing. | Phase 4: LangGraph conversational workflow |
 | 2026-11-18 | Phase 4: LangGraph Multi-Node Workflow | Implemented `app/graph/` (StateGraph, query rewriter, router, parallel comparison retriever, relevance grader, grounded generator, citation builder, fallback node). Verified all 5 golden question types in `tests/test_graph.py`. | Phase 5: Zero-Build Chat UI |
 | 2026-11-18 | Phase 5: Zero-Build UI & Vercel Parity | Implemented `static/index.html` with Tailwind CSS, Marked.js, DOMPurify, Covered Products Drawer, and citation pills. Verified full FastAPI integration with `tests/test_api.py`. | Phase 6: Evals & Golden Test Set |
-| 2026-11-18 | Phase 6: 15-Question Golden Benchmark | Created `tests/eval_set.json` and `scripts/run_eval.py`. Achieved 15/15 (100%) pass rate with 0.31s avg latency. Full test suite passing 29/29 tests. | Phase 7: Final Documentation & Git Push |
+| 2026-11-18 | Phase 6: 15-Question Golden Benchmark | Created `tests/eval_set.json` and `scripts/run_eval.py`. Achieved 15/15 (100%) pass rate. Full test suite passing 29/29 tests at the time. | Phase 7: Final Documentation & Git Push |
 | 2026-11-18 | Phase 7: Technical Report & Git Push | Authored comprehensive 4-6 page Technical Report (`docs/technical_report.md`), 5-Minute Video Demo Script (`docs/demo_script.md`), and root `README.md`. Ready to commit and push. | Complete git commit and push |
+| 2026-11-18 | Phase 8: Retrieval, Memory, Scraping & Routing Hardening | Fixed 4 live failure modes: (1) DISCOVERY vs FACT routing for "about your products?" / "types of credit card?" incl. list-cue precedence; (2) bare continuation + affirmation binding with listing-thread guard; (3) feedback-widget/accessibility noise stripping and title-derived `product_name`; (4) DISCOVERY top_k 20 + 2 chunks/product cap + `category` filter pushdown. Added `app/catalog_chunks.py` (9 anchors), category payload index, and anchor/product boundary. Ingested anchors and deleted 21 UI-noise points from live `site_kb` (229 -> 208). 69/69 tests, eval 15/15, 3-turn live flow verified. | Commit and push; optional full re-crawl after making `compile_and_save_catalog` merge instead of overwrite |
+| 2026-11-18 | Phase 9: WhatsApp UI & Render-Ready View Model | Replaced `static/index.html` with a single-file WhatsApp-style shell (inline CSS, no CDN, dark/light tokens). Added `app/ui_view.py` projecting `ChatResponse` onto `UIChatResponse` (intro/specs/cards/bullets/sources/chips) and exposed `POST /api/chat/ui`. Added `POST /api/feedback` writing `data/feedback.jsonl`; header coverage pill now reads `GET /api/products`. Removed the client's simulated-answer mode and all inline handlers; added a source-URL protocol allowlist. While verifying, also fixed two content bugs: FACT answers no longer quote catalog-directory chunks or scraper metadata, and COMPARISON keeps the router's named pair in order (`products_in_context` was a `set`, so the compared pair depended on the hash seed). 79/79 tests, eval 15/15 (0.64s). | Commit and push; optional: docs remain otherwise consistent |

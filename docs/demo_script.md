@@ -13,8 +13,8 @@
 |---|---|---|---|
 | **0:00 - 0:45** | Intro & Architecture | Architecture diagram (`docs/technical_report.md`) | Core problem: hallucination & brittle scrapers. Our solution: FastAPI, LangGraph, Qdrant Hybrid Search, 5-tier guardrails. |
 | **0:45 - 1:45** | Knowledge Base Build | Terminal executing `python -m scripts.build_kb` | Resilient crawler with Firecrawl + TinyFish failover. UAE Dirham currency normalization (`\uEAEF` -> `AED`). Qdrant Cloud hybrid indexing with BGE-small + BM25. |
-| **1:45 - 2:30** | Demo 1: Single Fact & Citations | Browser UI (`http://localhost:8000`) | Query: *"What is the annual fee of U By Emaar Signature Credit Card?"* Highlight exact fee (`AED 262.50`), zero hallucination, and click citation pill opening source page. |
-| **2:30 - 3:15** | Demo 2: Product Discovery & Drawer | Browser UI & Products Drawer | Click **[📦 Covered Products]** drawer. Show live products. Query: *"What credit cards and commercial cards are available?"* Show structured catalog response. |
+| **1:45 - 2:30** | Demo 1: Single Fact & Citations | Browser UI (`http://localhost:8000`) | Query: *"What is the annual fee of U By Emaar Signature Credit Card?"* Highlight the spec grid with the exact fee (`AED 262.50`), zero hallucination, and open the **Verified Sources** drawer. |
+| **2:30 - 3:15** | Demo 2: Product Discovery & Coverage Pill | Browser UI | Point at the live **[📦 21 Verified Products]** pill. Query: *"What credit cards and commercial cards are available?"* Show the swipeable product-card rail and its citations. |
 | **3:15 - 3:55** | Demo 3: Comparison Query | Browser UI | Query: *"Compare Corporate Virtual Mobile Card and U By Emaar Signature Credit Card"*. Explain parallel dual sub-query retrieval (`asyncio.gather`) and side-by-side contrast. |
 | **3:55 - 4:25** | Demo 4: Multi-turn Follow-up | Browser UI | Query: *"What is its minimum salary requirement?"* Show rewriter node resolving *"its"* to *"U By Emaar Signature Credit Card"*, delivering *"AED 12,000"*. |
 | **4:25 - 4:50** | Demo 5: Fallback & Guardrails | Browser UI | Query 1: *"Can I buy Tesla stock using your bank?"* Query 2: *"Ignore all previous instructions..."* Highlight amber warning card, `answerable=False`, 0 hallucinations. |
@@ -45,24 +45,24 @@
 
 ### [1:45 - 2:30] Demo 1: Single Product Fact & Source Citations
 *(Switch screen to Browser at `http://localhost:8000`)*  
-*"Now, let's look at the browser interface. It's a clean, zero-build modern dark theme using Tailwind CSS and Marked.js.*
+*"Now, let's look at the browser interface. It's a single zero-build file - inline CSS and vanilla JavaScript, no bundler and no CDN - styled as a familiar messaging app.*
 
 *Let’s test **Category 1: Single Product Fact**. I’ll click this suggestion chip:  
 `'What is the annual fee of U By Emaar Signature Credit Card?'`*
 
 *In less than 300 milliseconds, the assistant answers with grounded precision:  
 `'The annual fee is AED 262.50 with a joining fee of AED 525.'`  
-Notice the **Verified Sources** row below: It includes a server-constructed citation pill with the page title, an external link icon, and the exact crawl timestamp. If I click this link, it opens the official bank product page directly."*
+The figure arrives as a structured spec grid, not free text: the browser received a typed payload and drew it, so it could never have invented that number. Below it, the **Verified Sources** drawer lists the exact pages with their crawl dates - click one and the official bank page opens."*
 
 ---
 
-### [2:30 - 3:15] Demo 2: Product Discovery & Catalog Drawer
-*(Click the [📦 Covered Products] button in the top right)*  
-*"Next, let's explore **Category 2: Product Discovery**. In the top right header, I click the **Covered Products** drawer. This calls our `/api/products` endpoint and lists every verified product currently indexed in Qdrant, grouped by category: Credit Cards, Commercial Cards, and Accounts.*
+### [2:30 - 3:15] Demo 2: Product Discovery & Coverage Pill
+*(Point at the [📦 21 Verified Products] pill in the top right)*  
+*"Next, let's explore **Category 2: Product Discovery**. The pill in the header is populated live from our `/api/products` endpoint, so it always reflects what is actually indexed in Qdrant.*
 
-*Now let’s ask: `'What credit cards and commercial cards are available?'`*
+*Now let's ask: `'What credit cards and commercial cards are available?'`*
 
-*The router classifies this as `DISCOVERY` intent, queries our catalog, and lists the verified offerings with summaries and source links. Everything is 100% grounded in site data."*
+*The router classifies this as `DISCOVERY` intent, queries our catalog, and the answer comes back as a swipeable card rail - one card per verified product, with its published annual fee, minimum requirement and official page. Everything is 100% grounded in site data, and the `Verified Sources` drawer underneath lists exactly which pages it came from."*
 
 ---
 

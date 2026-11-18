@@ -86,12 +86,19 @@ def strip_boilerplate(markdown_text: str) -> str:
     """Strip website navigation artifacts, feedback widgets, and footer noise."""
     text = normalize_currency(markdown_text)
 
-    # 1. Remove accessibility banner and skip-to-content links
+    # 1. Remove accessibility banner, skip-to-content links, and enable-accessibility noise
     text = re.sub(r"(?i)skip to main content\s*", "", text)
-    text = re.sub(r"(?i)enable accessibility for low vision\s*", "", text)
+    text = re.sub(r"(?i)enable accessibility(?:\s+for low vision)?\s*", "", text)
     text = re.sub(r"(?i)open the accessibility menu\s*", "", text)
 
-    # 2. Remove Userway / accessibility spinners and decorative images
+    # 2. Remove feedback widgets, survey prompts, and conversational noise
+    text = re.sub(r"(?i)would you like to talk to us\??\s*", "", text)
+    text = re.sub(r"(?i)we'?d like to hear from you\.?\s*", "", text)
+    text = re.sub(r"(?i)thank you for your feedback!?\s*", "", text)
+    text = re.sub(r"(?i)was this information helpful\??\s*", "", text)
+    text = re.sub(r"(?i)^(?:yes|no)(?:\s+(?:yes|no))*\s*$", "", text, flags=re.MULTILINE)
+
+    # 3. Remove Userway / accessibility spinners and decorative images
     text = re.sub(r"!\[(?:Spinner|Wheel)[^\]]*\]\([^)]+\)", "", text, flags=re.IGNORECASE)
     text = re.sub(r"!\[\]\([^)]+\)", "", text)
 

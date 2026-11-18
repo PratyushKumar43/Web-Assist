@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from app.catalog import compile_and_save_catalog
+from app.catalog_chunks import generate_catalog_overview_chunks
 from app.chunk import chunk_document
 from app.clean import clean_page_content
 from app.config import settings
@@ -137,6 +138,12 @@ async def run_deep_crawl_and_index():
         chunks = chunk_document(page_record, product_meta=product_meta, max_tokens=500)
         logger.info("Generated %d chunks for '%s'.", len(chunks), hub["name"])
         all_chunks.extend(chunks)
+
+    # Synthetic catalog anchors so broad discovery queries ("about your products",
+    # "types of credit card") can match a whole-catalog document
+    anchor_chunks = generate_catalog_overview_chunks()
+    all_chunks.extend(anchor_chunks)
+    logger.info("Added %d catalog anchor chunks.", len(anchor_chunks))
 
     # Upsert all chunks into Qdrant Cloud
     logger.info("Upserting %d relational chunks into Qdrant Cloud '%s'...", len(all_chunks), settings.QDRANT_COLLECTION)

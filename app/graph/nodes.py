@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from qdrant_client.models import FieldCondition, Filter, MatchValue
+
 from app.config import settings
 from app.graph.state import ChatState
 from app.indexer import get_indexer
@@ -30,6 +32,66 @@ def load_catalog_data() -> List[Dict[str, Any]]:
     return []
 
 
+# Banking topics used to bind elliptical and continuation follow-ups to context
+BANKING_TOPIC_PATTERNS: List[Tuple[str, str]] = [
+    (r"\b(?:commercial|business)\s*cards?\b", "commercial cards"),
+    (r"\bcredit\s*cards?\b", "credit cards"),
+    (r"\bdebit\s*cards?\b", "debit cards"),
+    (r"\b(?:current\s*accounts?|checking\s*accounts?)\b", "current accounts"),
+    (r"\b(?:savings\s*accounts?|deposit\s*accounts?)\b", "savings accounts"),
+    (r"\b(?:loans?|financing|mortgages?)\b", "loans"),
+    (r"\baccounts?\b", "accounts"),
+]
+
+# Detail phrasing that embeds well in Qdrant for each resolved category
+TOPIC_DETAIL_PHRASES = {
+    "credit cards": "annual fees, minimum salary requirements, and key benefits",
+    "debit cards": "features, fees, and key benefits",
+    "commercial cards": "features, fees, and eligibility requirements",
+    "current accounts": "minimum balance requirements, fees, and key benefits",
+    "savings accounts": "profit rates, minimum balance requirements, and key benefits",
+    "loans": "profit rates, eligibility requirements, and key benefits",
+}
+
+# Explicit catalog request used when a continuation has no bindable topic
+CATALOG_OVERVIEW_QUERY = "List all Emirates NBD banking products and services"
+
+# Bare continuation / affirmation replies with no topic of their own
+BARE_CONTINUATION_RE = re.compile(
+    r"^(?:tell\s+me\s+all|show\s+(?:me\s+)?all|list\s+them(?:\s+all)?|"
+    r"give\s+me\s+all|all\s+of\s+them|yes(?:\s+please)?|sure|go\s+ahead|"
+    r"continue|more|show\s+everything|list\s+everything|"
+    r"what\s+are\s+they|tell\s+me\s+everything|show\s+me\s+everything)[?!.]*$",
+    re.IGNORECASE,
+)
+
+
+def detect_active_category(messages: List[Dict[str, str]]) -> Optional[str]:
+    """Return the banking topic most recently mentioned, preferring user turns."""
+    user_messages = [m for m in messages if m.get("role") == "user"]
+    for scope in (user_messages, messages):
+        for m in reversed(scope):
+            content = m.get("content", "") or ""
+            for pattern, label in BANKING_TOPIC_PATTERNS:
+                if re.search(pattern, content, re.IGNORECASE):
+                    return label
+    return None
+
+
+def matches_product_name(prod: str, text_norm: str) -> bool:
+    """Check if a catalog product name or its distinct core brand matches text."""
+    prod_norm = re.sub(r"s\b", "", prod.lower())
+    if prod_norm in text_norm:
+        return True
+    prod_core = re.sub(
+        r"(?i)\b(?:credit|debit|commercial|visa|infinite|signature|platinum|gold|world|account|card)\b",
+        "",
+        prod,
+    ).strip().lower()
+    prod_core = re.sub(r"\s+", " ", prod_core).strip()
+    return len(prod_core) >= 5 and prod_core in text_norm
+
+
 # -----------------------------------------------------------------------------
 # Tier 1: Query Rewriter Node (Pronoun & Context Resolution)
 # -----------------------------------------------------------------------------
@@ -45,6 +107,11 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
     clean_query = re.sub(r"(?i)\bwhich\s+credit\s+cards\s+you\s+offers?\b", "which credit cards do you offer", clean_query)
 
     if not messages:
+        # "tell me all" as an opening turn is still an explicit catalog request
+        if BARE_CONTINUATION_RE.match(clean_query) and re.search(
+            r"(?i)\b(?:all|everything|them|they)\b", clean_query
+        ):
+            return {"standalone_query": CATALOG_OVERVIEW_QUERY}
         return {"standalone_query": clean_query}
 
     # 1. Conversational Rejection / Pivot Detection (e.g. "but i didnt ask for Current Account, show me all types")
@@ -81,25 +148,51 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
         re.IGNORECASE,
     )
     if elliptical_pattern.match(clean_query):
-        active_category = None
-        for m in reversed(messages):
-            c_lower = m.get("content", "").lower()
-            if "debit card" in c_lower:
-                active_category = "debit cards"
-                break
-            elif "credit card" in c_lower:
-                active_category = "credit cards"
-                break
-            elif "account" in c_lower:
-                active_category = "accounts"
-                break
-            elif "loan" in c_lower:
-                active_category = "loans"
-                break
+        active_category = detect_active_category(messages)
 
         if active_category:
             resolved = f"What are other {active_category} options offered by Emirates NBD?"
             logger.info("Elliptical query bound to active topic: '%s' -> '%s'", raw_query, resolved)
+            return {"standalone_query": resolved}
+
+    # 2.3 Bare Continuation / Affirmation Follow-Up Resolution
+    # Catches "tell me all", "show everything", "list them", "yes please",
+    # "go ahead", "continue", "more" and binds them to the active banking topic.
+    if BARE_CONTINUATION_RE.match(clean_query):
+        # Affirmations ("yes", "sure", "continue") only continue a *listing* thread.
+        # After a single-product answer, "yes" must not turn into a catalog query.
+        affirmation_only = re.match(
+            r"^(?:yes(?:\s+please)?|sure|go\s+ahead|continue|more)[?!.]*$", clean_query, re.IGNORECASE
+        )
+        if affirmation_only:
+            prior_user_message = next(
+                (m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), ""
+            )
+            listing_intent = re.search(
+                r"\b(?:all|types?|which|what|any|options?|list|show|available|offer|every)\b",
+                prior_user_message or "",
+                re.IGNORECASE,
+            )
+            if not listing_intent:
+                if prior_user_message:
+                    logger.info(
+                        "Affirmation bound to previous question: '%s' -> '%s'", raw_query, prior_user_message
+                    )
+                    return {"standalone_query": prior_user_message}
+                return {"standalone_query": clean_query}
+
+        active_category = detect_active_category(messages)
+        if active_category:
+            details = TOPIC_DETAIL_PHRASES.get(active_category, "fees, requirements, and key benefits")
+            resolved = f"List all Emirates NBD {active_category} with {details}"
+            logger.info("Bare continuation bound to active topic: '%s' -> '%s'", raw_query, resolved)
+            return {"standalone_query": resolved}
+
+        # "tell me all"/"show everything" alone is an explicit catalog request;
+        # a bare "yes"/"continue" with no prior topic stays untouched.
+        if re.search(r"(?i)\b(?:all|everything|them|they)\b", clean_query):
+            resolved = CATALOG_OVERVIEW_QUERY
+            logger.info("Bare continuation without prior topic; escalating to catalog overview: '%s'", raw_query)
             return {"standalone_query": resolved}
 
     # 2.5 Dual Subject / Comparison Follow-Up Resolution (e.g. "i want both difference", "compare both")
@@ -121,8 +214,7 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
             content = msg.get("content", "")
             content_norm = re.sub(r"s\b", "", content.lower())
             for prod in known_products:
-                prod_norm = re.sub(r"s\b", "", prod.lower())
-                if prod_norm in content_norm and prod not in recent_products:
+                if matches_product_name(prod, content_norm) and prod not in recent_products:
                     recent_products.append(prod)
                 if len(recent_products) >= 2:
                     break
@@ -134,7 +226,14 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
             if compare_cue.search(clean_query):
                 resolved = f"Compare {prod_a} and {prod_b}"
             else:
-                resolved = both_pattern.sub(f"{prod_a} and {prod_b}", clean_query, count=1)
+                attr_part = both_pattern.sub("", clean_query).strip(" ?.")
+                attr_part = re.sub(
+                    r"(?i)^(?:what\s+about|tell\s+me\s+about|show\s+me|how\s+about)\s+", "", attr_part
+                ).strip()
+                if attr_part:
+                    resolved = f"Compare {attr_part} of {prod_a} and {prod_b}"
+                else:
+                    resolved = f"Compare {prod_a} and {prod_b}"
             logger.info("Resolved dual subject follow-up: '%s' -> '%s'", raw_query, resolved)
             return {"standalone_query": resolved}
 
@@ -166,8 +265,7 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
         content = msg.get("content", "")
         content_norm = re.sub(r"s\b", "", content.lower())
         for prod in known_products:
-            prod_norm = re.sub(r"s\b", "", prod.lower())
-            if prod_norm in content_norm:
+            if matches_product_name(prod, content_norm):
                 last_subject = prod
                 break
         if last_subject:
@@ -244,26 +342,30 @@ def router_node(state: ChatState) -> Dict[str, Any]:
         re.IGNORECASE,
     )
     if about_pattern.match(query_lower.strip()):
-        return {
-            "intent": "ABOUT",
-            "sub_queries": [query],
-        }
+        # A query that names product categories is discovery, not a bank overview.
+        if not re.search(
+            r"\b(?:products?|cards?|accounts?|services?|loans?|offerings?)\b", query_lower
+        ):
+            return {
+                "intent": "ABOUT",
+                "sub_queries": [query],
+            }
 
     # 4. Comparison Intent (Sub-query decomposition)
     compare_pattern = re.compile(
         r"\b(?:compare|comparison|versus|vs\.?|vs\b|differ(?:s|ence|ences)?|how\s+(?:are\s+they\s+)?different|what\s+is\s+different|better\s+than|which\s+(?:one\s+)?is\s+better|side\s+by\s+side)\b",
         re.IGNORECASE,
     )
-    is_comparison = bool(compare_pattern.search(query_lower))
+    catalog = load_catalog_data()
+    catalog_names = [p["name"] for p in catalog]
+    found_products: List[str] = []
+    for name in catalog_names:
+        if name.lower() in query_lower:
+            found_products.append(name)
+
+    is_comparison = bool(compare_pattern.search(query_lower)) or len(found_products) >= 2
 
     if is_comparison:
-        catalog = load_catalog_data()
-        catalog_names = [p["name"] for p in catalog]
-        found_products: List[str] = []
-        for name in catalog_names:
-            if name.lower() in query_lower:
-                found_products.append(name)
-
         if len(found_products) >= 2:
             prod_a, prod_b = found_products[0], found_products[1]
             sub_queries = [
@@ -311,7 +413,17 @@ def router_node(state: ChatState) -> Dict[str, Any]:
         "card options", "debit cards options", "credit card options", "credit cards do you offer",
         "debit cards do you offer", "cards do you offer", "what cards do you have", "other debit cards options",
         "other credit cards options",
+        # Broad "about your products/services" inquiries
+        "about your products", "about products", "your products", "your services",
+        "what do you offer", "what do you provide", "what are your products",
+        "about your cards", "about your accounts", "your cards", "your accounts",
     ]
+
+    # "types of credit card?", "types of accounts", etc. → category discovery
+    types_of_pattern = re.compile(
+        r"\btypes?\s+of\s+(?:credit\s*cards?|debit\s*cards?|commercial\s*cards?|accounts?|cards?|loans?|products?|services?)\b",
+        re.IGNORECASE,
+    )
 
     category_discovery_pattern = re.compile(
         r"\b(?:which|what|show|list|tell\s+me\s+about)\s+(?:are\s+(?:the|your)\s+)?(?:available\s+)?(?:credit\s*cards?|debit\s*cards?|current\s*accounts?|savings\s*accounts?|accounts?|cards?|options?|types?)\b|"
@@ -321,7 +433,11 @@ def router_node(state: ChatState) -> Dict[str, Any]:
         re.IGNORECASE,
     )
 
-    is_attribute_fact = any(
+    # A broad listing cue ("all", "every", "list", "types of") outranks attribute
+    # keywords, so "list all credit cards with annual fees" stays DISCOVERY.
+    has_list_cue = bool(re.search(r"\b(?:all|every|list|types?\s+of)\b", query_lower))
+
+    is_attribute_fact = (not has_list_cue) and any(
         a in query_lower
         for a in [
             "annual fee", "joining fee", "what is the fee", "how much is the fee",
@@ -333,6 +449,12 @@ def router_node(state: ChatState) -> Dict[str, Any]:
     is_discovery = not is_attribute_fact and (
         any(t in query_lower for t in discovery_triggers)
         or bool(category_discovery_pattern.search(query_lower))
+        or bool(types_of_pattern.search(query_lower))
+        or bool(re.search(
+            r"\b(?:about|tell\s+me\s+about)\s+(?:your|the|our|all)\s+(?:bank(?:'s)?\s+)?"
+            r"(?:products?|offerings?|services?|cards?|accounts?|banking)\b",
+            query_lower,
+        ))
         or bool(re.search(r"\b(?:what|which|all|list|show|browse|tell\s+me)\b.*(?:cards?|accounts?|loans?|products?|options?|services?|types?).*\b(?:available|offered|offer|offers|have|exist|open|apply|get|providing|provide)\b", query_lower))
         or bool(re.search(r"\bavailable\s+(?:credit\s+|debit\s+)?cards?\b", query_lower))
     )
@@ -363,6 +485,10 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
 
     retrieved_chunks: List[Dict[str, Any]] = []
 
+    def is_catalog_anchor(chunk: Dict[str, Any]) -> bool:
+        """Synthetic whole-catalog chunks are context, never a product entity."""
+        return chunk.get("category") == "general_catalog"
+
     if intent == "COMPARISON" and len(sub_queries) >= 2:
         # Execute parallel retrieval for both product subjects (asyncio.gather)
         loop = asyncio.get_event_loop()
@@ -374,7 +500,7 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
         seen_ids = set()
         for c in results_a + results_b:
             cid = c.get("chunk_id")
-            if cid and cid not in seen_ids:
+            if cid and cid not in seen_ids and not is_catalog_anchor(c):
                 seen_ids.add(cid)
                 retrieved_chunks.append(c)
 
@@ -413,11 +539,49 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
         target_category = state.get("target_category")
         catalog = load_catalog_data()
         loop = asyncio.get_event_loop()
+        # Wider net so a single index page cannot monopolise the context window
+        discovery_top_k = 20
+
+        def keep_top_per_product(chunks: List[Dict[str, Any]], max_per_product: int = 2) -> List[Dict[str, Any]]:
+            """Cap chunks per product so discovery answers cover many products."""
+            kept: List[Dict[str, Any]] = []
+            counts: Dict[str, int] = {}
+            for chunk in chunks:
+                key = (chunk.get("product_name") or chunk.get("url") or "unknown").strip().lower()
+                if counts.get(key, 0) >= max_per_product:
+                    continue
+                counts[key] = counts.get(key, 0) + 1
+                kept.append(chunk)
+            return kept
 
         if target_category:
-            retrieved_chunks = await loop.run_in_executor(
-                None, indexer.hybrid_search, f"{target_category} {standalone_query}", settings.TOP_K
-            )
+            query_text = f"{target_category} {standalone_query}"
+            # Restrict the vector search to the category when the catalog knows it,
+            # so cross-category chunks cannot crowd out the candidate set.
+            query_filter = None
+            if any(p.get("category", "").lower() == target_category.lower() for p in catalog):
+                query_filter = Filter(
+                    must=[FieldCondition(key="category", match=MatchValue(value=target_category))]
+                )
+
+            raw_chunks = []
+            if query_filter is not None:
+                try:
+                    raw_chunks = await loop.run_in_executor(
+                        None, indexer.hybrid_search, query_text, discovery_top_k, query_filter
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Category filter unavailable (%s); querying unfiltered. "
+                        "Rebuild the index to enable category payload filtering.",
+                        exc,
+                    )
+            if query_filter is None or not raw_chunks:
+                raw_chunks = await loop.run_in_executor(
+                    None, indexer.hybrid_search, query_text, discovery_top_k
+                )
+
+            retrieved_chunks = keep_top_per_product(raw_chunks)
             # Strict category isolation
             def is_chunk_compatible(c: Dict[str, Any]) -> bool:
                 c_cat = c.get("category", "").lower()
@@ -450,10 +614,11 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
                         "score": 0.95,
                     })
         else:
-            retrieved_chunks = await loop.run_in_executor(
-                None, indexer.hybrid_search, standalone_query, settings.TOP_K
+            raw_chunks = await loop.run_in_executor(
+                None, indexer.hybrid_search, standalone_query, discovery_top_k
             )
-            retrieved_chunks = [c for c in retrieved_chunks if not any(k in c.get("url", "").lower() for k in ["contact", "career", "complaint"])]
+            raw_chunks = [c for c in raw_chunks if not any(k in c.get("url", "").lower() for k in ["contact", "career", "complaint"])]
+            retrieved_chunks = keep_top_per_product(raw_chunks)
             for prod in catalog:
                 if not any(prod["name"].lower() in c.get("product_name", "").lower() for c in retrieved_chunks):
                     retrieved_chunks.append({
@@ -471,10 +636,37 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
             None, indexer.hybrid_search, standalone_query, settings.TOP_K
         )
 
+        catalog = load_catalog_data()
+        query_lower = standalone_query.lower()
+
+        # If query explicitly targets a known catalog product, ensure its official spec is injected
+        matched_named_prod = None
+        for p in sorted(catalog, key=lambda x: len(x["name"]), reverse=True):
+            if p["name"].lower() in query_lower:
+                matched_named_prod = p
+                break
+        if matched_named_prod:
+            cat_cid = f"catalog_{matched_named_prod['product_id']}"
+            if not any(c.get("chunk_id") == cat_cid for c in retrieved_chunks):
+                retrieved_chunks.insert(0, {
+                    "chunk_id": cat_cid,
+                    "text": (
+                        f"Product: {matched_named_prod['name']}\n"
+                        f"Category: {matched_named_prod['category']}\n"
+                        f"Summary: {matched_named_prod.get('summary', '')}\n"
+                        f"Annual Fee: {matched_named_prod.get('annual_fee') or 'None / Free'}\n"
+                        f"Joining Fee: {matched_named_prod.get('joining_fee') or 'None'}\n"
+                        f"Requirements: {matched_named_prod.get('min_requirement') or 'N/A'}"
+                    ),
+                    "product_name": matched_named_prod["name"],
+                    "title": f"{matched_named_prod['name']} | Emirates NBD",
+                    "url": matched_named_prod["url"],
+                    "score": 0.99,
+                })
+
         # Multi-Hop Relational Knowledge Graph Traversal
         from app.relations import resolve_entity_by_text, format_relational_context_chunk
         entity = resolve_entity_by_text(standalone_query)
-        query_lower = standalone_query.lower()
         inherited_triggers = [
             "minimum balance", "min balance", "minimum average", "average balance",
             "fall below", "fall-below", "maintenance fee", "fees", "fee", "charge", "charges",
@@ -508,8 +700,17 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
     if retrieved_chunks:
         max_score = max(c.get("score", 0.0) for c in retrieved_chunks)
 
-    # Track distinct products in context
-    products = list({c.get("product_name") for c in retrieved_chunks if c.get("product_name")})
+    # Track distinct products in context (catalog anchors are not products).
+    # For a comparison the router's named subjects are authoritative and ordered; otherwise
+    # dedupe in retrieval order (a set here would make the answer depend on the hash seed).
+    if intent == "COMPARISON" and state.get("products_in_context"):
+        products = list(state["products_in_context"])
+    else:
+        products = list(dict.fromkeys(
+            c.get("product_name")
+            for c in retrieved_chunks
+            if c.get("product_name") and not is_catalog_anchor(c)
+        ))
 
     return {
         "retrieved_chunks": retrieved_chunks,
@@ -729,6 +930,7 @@ def deterministic_grounded_synthesis(
     query_lower = query.lower()
     q_norm = re.sub(r"s\b", "", query_lower)
 
+    # Phase 1: Check if any product name from the catalog appears explicitly in user query
     for p in sorted(catalog, key=lambda x: len(x["name"]), reverse=True):
         p_name_lower = p["name"].lower()
         p_norm = re.sub(r"s\b", "", p_name_lower)
@@ -736,16 +938,18 @@ def deterministic_grounded_synthesis(
             matching_catalog_prod = p
             product_name = p["name"]
             break
-        # Also check against top_chunk's product_name if present
-        if top_chunk_prod:
-            t_norm = re.sub(r"s\b", "", top_chunk_prod.lower())
+
+    # Phase 2: Only fallback to top_chunk's product_name if query didn't name a product
+    if not matching_catalog_prod and top_chunk_prod:
+        t_norm = re.sub(r"s\b", "", top_chunk_prod.lower())
+        for p in catalog:
+            p_norm = re.sub(r"s\b", "", p["name"].lower())
             if p_norm == t_norm or p_norm in t_norm:
                 matching_catalog_prod = p
                 product_name = p["name"]
                 break
-
-    if not matching_catalog_prod and top_chunk_prod:
-        product_name = top_chunk_prod
+        if not matching_catalog_prod:
+            product_name = top_chunk_prod
     elif not matching_catalog_prod:
         product_name = "the requested product"
 
@@ -753,19 +957,44 @@ def deterministic_grounded_synthesis(
     clean_facts = []
     seen_facts = set()
 
-    for c in chunks:
-        if c.get("chunk_id"):
-            used_chunk_ids.append(c.get("chunk_id"))
+    # Whole-catalog directory chunks describe the catalog, not a product's facts.
+    fact_chunks = [c for c in chunks if c.get("category") != "general_catalog"]
+    if matching_catalog_prod:
+        target_name = matching_catalog_prod["name"].lower()
+        # Strictly isolate facts to the target product or general policy chunks
+        matching_chunks = [
+            c for c in fact_chunks
+            if not c.get("product_name") or c.get("product_name").lower() == target_name or c.get("is_relational")
+        ]
+        if matching_chunks:
+            fact_chunks = matching_chunks
+
+    for c in fact_chunks:
         text = c.get("text", "")
+        accepted_lines = 0
         for line in text.splitlines():
             line_clean = line.strip(" -*#_")
             line_lower = line_clean.lower()
             # Ignore empty lines, breadcrumbs, markdown images, raw URLs
             if not line_clean or len(line_clean) < 15:
                 continue
+            # Skip chunk prefix headers (e.g. [Product: X | Category: Y | Status: Z])
+            if re.match(r"^\[Product:\s*.*?\]", line_clean, re.IGNORECASE):
+                continue
             if re.match(r"^product:\s*.*>\s*.*", line_clean, re.IGNORECASE):
                 continue
-            if line_clean.startswith("![") or line_clean.startswith("http") or line_clean.startswith("[View"):
+            # Scraper metadata headers, not product facts
+            if re.match(
+                r"^(?:official regulatory & policy context for|product category)\s*:",
+                line_clean,
+                re.IGNORECASE,
+            ):
+                continue
+            # Skip image tags, truncated images, or raw image markdown
+            if "![" in line_clean or line_clean.startswith("[!") or "](" in line_clean or line_clean.startswith("http") or line_clean.startswith("[View"):
+                continue
+            # Skip UI action button noise
+            if re.search(r"\b(?:apply now|view more|read more|learn more)\b", line_lower):
                 continue
             if "terms and conditions" in line_lower and len(line_clean) < 30:
                 continue
@@ -794,6 +1023,11 @@ def deterministic_grounded_synthesis(
             if norm_key not in seen_facts:
                 seen_facts.add(norm_key)
                 clean_facts.append(line_clean)
+                accepted_lines += 1
+
+        # Only cite a chunk if it actually contributed a fact
+        if accepted_lines and c.get("chunk_id"):
+            used_chunk_ids.append(c.get("chunk_id"))
 
     # 2. If we have a matching catalog record, format a rich specification table
     if matching_catalog_prod:

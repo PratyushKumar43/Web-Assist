@@ -214,11 +214,13 @@ The system was evaluated against a 15-question golden test suite covering all 5 
 ## 7. Zero-Build Frontend Design
 
 The frontend (`static/index.html`) conforms to modern zero-build principles:
-- **No NPM Build Step**: Runs directly from standard HTML5, Tailwind CSS CDN, DOMPurify, and Marked.js.
-- **Visual Distinction for Fallbacks**: Out-of-scope refusals feature an amber border (`#F59E0B`) with an explicit warning pill (`⚠️ Out of Scope / Unverified`).
-- **Interactive Citation Pills**: Source links feature an external link icon (`↗`) and a "Crawled: [Date]" badge that opens the live canonical source page.
-- **Covered Products Drawer**: An interactive slide-over populated dynamically via `GET /api/products`, allowing users to inspect the indexed knowledge base and populate queries with one click.
-- **Suggestion Chips**: Five pre-configured suggestion chips directly trigger the golden question categories for effortless demonstration.
+- **No Build Step and No CDN**: One file of HTML, inline CSS, and vanilla JavaScript. No npm, and no third-party script needs to load before the UI works.
+- **Server-Rendered Structure**: The browser draws a typed view model from `POST /api/chat/ui` — lead-in, spec grid, product cards, bullets, citations, chips. It never parses markdown, so it cannot present a figure the pipeline did not verify.
+- **Visual Distinction for Fallbacks**: Out-of-scope refusals render as an amber bubble with a `Not covered by the site` badge, no cards, and recovery chips.
+- **Collapsible Citations**: Each answer carries a `Verified Sources (n)` drawer listing page title, crawl date, and the canonical link, filtered to `http(s)` URLs only.
+- **Live Coverage Pill**: The header count comes from `GET /api/products`; nothing is hardcoded.
+- **Suggestion Chips**: Quick replies are drawn from the golden eval set, so every visible chip is known to route and answer correctly.
+- **Feedback**: Per-answer thumbs post to `POST /api/feedback`, which records `interaction_id` + rating to `data/feedback.jsonl` for offline review. It does not train or cache.
 
 ---
 

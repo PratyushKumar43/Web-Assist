@@ -30,7 +30,7 @@ No login, no accounts, no personal data.
 3. **Transparent Citations**: Source URLs and crawl dates are constructed server-side from verified chunk metadata.
 4. **Defensive Guardrails**: Multi-tier guardrails (input validation, score gating, numeric consistency, prompt injection defense).
 5. **Honest Fallback**: Clear, polite refusal when information is out-of-scope or missing.
-6. **Technical Defensibility**: Built on **Python LangGraph StateGraph**, **Gemini Flash + Gemini Embeddings**, **Qdrant Hybrid Search (Dense + BM25)**, **Pydantic**, and **Firecrawl / TinyFish**. Every line and design choice can be explained live.
+6. **Technical Defensibility**: Built on **Python LangGraph StateGraph**, **Gemini Flash + FastEmbed (dense + BM25)**, **Qdrant Hybrid Search (Dense + BM25)**, **Pydantic**, and **Firecrawl / TinyFish**. Every line and design choice can be explained live.
 
 ## 4. Functional Requirements
 
@@ -40,16 +40,23 @@ No login, no accounts, no personal data.
 | FR2 | Polite & resilient crawl | Respects `robots.txt`, rate-limited (1 req/sec); Firecrawl primary + TinyFish AI fallback |
 | FR3 | Product catalog | Extracts and verifies all distinct offerings into a structured Pydantic-validated manifest |
 | FR4 | Coverage report | `data/coverage_report.md` proves 100% of discovered products are indexed |
-| FR5 | Zero-build Web UI | Clean browser chat UI (`static/index.html`) with source badges and product drawer |
+| FR5 | Zero-build Web UI | Single-file WhatsApp-style chat UI (`static/index.html`): intent badges, product cards, spec grid, collapsible citations, fallback styling |
 | FR6 | Single product fact | Returns exact figures, conditions, and source link (e.g. minimum balance, fees) |
 | FR7 | Product discovery | Queries catalog to return complete list of matching products, none invented |
 | FR8 | Comparison queries | Parallel retrieval per product with sub-query decomposition to avoid starvation |
-| FR9 | Conversational context | Rewrites queries with multi-turn history; resolves pronouns ("its eligibility") |
+| FR9 | Conversational context | Rewrites queries with multi-turn history; resolves pronouns ("its eligibility"), elliptical follow-ups ("any other"), and bare continuations ("tell me all", "yes please", "list them") |
 | FR10 | Score-gated fallback | Relevance threshold gate (< 0.35 RRF / < 0.65 similarity) bypasses generation to fallback |
 | FR11 | KB refresh capability | `build_kb.py --refresh` hashes content to upsert modified pages and prune deleted ones |
 | FR12 | Catalog API | `GET /api/products` serves full list of covered products for UI inspection |
 | FR13 | Fast Dev Server | `fastapi dev app/main.py` starts local dev server with auto-reload and OpenAPI docs |
 | FR14 | Five-tier Guardrails | Input, retrieval score gate, numeric check, citation assembly, and operational privacy |
+| FR15 | Broad inquiry routing | "about your products?", "types of credit card?", "what do you offer?" route to DISCOVERY, never ABOUT or FACT |
+| FR16 | Diversified discovery retrieval | DISCOVERY retrieves 20 candidates, keeps at most 2 chunks per product, and filters by category payload where available |
+| FR17 | Whole-catalog anchors | Synthetic overview and per-category directory chunks give broad discovery a full-catalog document to match |
+| FR18 | Clean ingested text | Feedback widgets, accessibility banners, survey prompts, and nav counters are stripped before chunking; product names come from a cleaned `<title>` |
+| FR19 | Continuation safety | Affirmations only continue a listing thread; after a single-product turn the prior question is repeated instead of listing the whole catalog |
+| FR20 | Render-ready view model | `POST /api/chat/ui` projects the grounded answer onto `intro` / `specs` / `cards` / `bullets` / `sources` / `next_chips`; the browser parses no markdown and composes no prose |
+| FR21 | Answer feedback | `POST /api/feedback` stores `interaction_id` + thumbs rating in `data/feedback.jsonl` for offline review; it never mutates the index or trains a model |
 
 ## 5. Question Types the Bot Must Handle
 
@@ -60,6 +67,8 @@ No login, no accounts, no personal data.
 | Comparison | "How do these two cards differ on annual fees?" | Side-by-side comparison with conditions for both cards preserved |
 | Follow-up | "And what is its eligibility?" | Rewritten query resolving "its" to the active product from turn 1 |
 | Out of scope | "Transfer money for me" / "Who won the match?" | Polite refusal explaining inability to perform transactions or answer out-of-scope queries |
+
+Follow-ups include elliptical and bare continuation forms ("any other", "tell me all", "yes please"). These inherit the active category from conversation history and are rewritten into explicit discovery queries; a bare affirmation after a single-product answer repeats that question rather than listing the whole catalog.
 
 ## 6. Out of Scope
 
@@ -73,7 +82,7 @@ No login, no accounts, no personal data.
 - **Cloud Deployment**: Zero-build frontend + FastAPI backend deployable on **Vercel** (`vercel.json`).
 - **Data Validation**: 100% Pydantic v2 validation for environment settings, API payloads, and LLM output schemas.
 - **Latency**: Typical response generated within 3 to 6 seconds.
-- **Embeddings**: API-based Gemini embeddings (`gemini-embedding-001`, 768 dimensions).
+- **Embeddings**: Local FastEmbed dense vectors (`BAAI/bge-small-en-v1.5`, 384 dimensions) plus sparse BM25 (`Qdrant/bm25`); no external embedding quota.
 - **Quality & Safety**: Prompt injection defense (context delimited as data, no executable tools).
 - **Security**: No secrets or confidential URLs committed. Documented `.env.example`.
 
@@ -89,7 +98,7 @@ No login, no accounts, no personal data.
 - [ ] Git repository (`https://github.com/PratyushKumar43/Web-Assist.git`) with documented README and AI disclosure.
 - [ ] Working one-command knowledge base builder (`python -m scripts.build_kb`).
 - [ ] Local server start verification via `fastapi dev app/main.py`.
-- [ ] Interactive browser UI with source citations, catalog drawer, and fallback styling.
+- [ ] Interactive browser UI with source citations, product cards, and fallback styling.
 - [ ] 5-minute recorded demonstration.
 - [ ] Exported product coverage report (`coverage_report.md`).
 - [ ] Test set of 10 to 15 golden questions with automated eval scores.

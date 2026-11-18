@@ -78,12 +78,29 @@ For each phase:
    - Pydantic models for validation and structured typing.
    - Single-responsibility functions (< 40 lines).
    - Structured error handling and logging (no bare `print`).
-3. Run the automated and manual exit checks for that phase.
+3. Run the automated and manual exit checks for that phase:
+   - `python -m pytest tests/ -q`
+   - For retrieval, routing, or synthesis changes: `python -m scripts.run_eval` (15/15 expected)
 4. DO NOT proceed to the next phase until the current phase exit check passes.
 
 ---
 
-## 6. End-of-Session Handoff Checklist
+## 6. Known Traps & Operational Notes
+
+1. **Protect the catalog before any rebuild.** `scripts/build_kb.py` and `scripts/deep_crawl_and_index.py` both call `compile_and_save_catalog()`, which overwrites `app/catalog.json` with only the products found in that run's crawl. Back it up, or make the catalog merge instead of replace, before a full rebuild.
+2. **Category filtering needs a payload index.** `QdrantHybridIndexer.ensure_collection()` creates the keyword index on `category`. On a cluster without it, Qdrant returns `400 Index required but not found`; `retrieve_context_node` catches that and retries unfiltered, so the feature degrades instead of failing.
+3. **Catalog anchor chunks are not products.** Chunks with `category = "general_catalog"` are whole-catalog context only. Keep them out of `products_in_context` and comparison tables (`is_catalog_anchor()`), or they will displace real products.
+4. **Point IDs are deterministic** (`uuid5(url, chunk_id)`), so re-upserting anchors is idempotent. An upsert never deletes stale chunks with different IDs; delete deliberately, and only obvious UI-noise chunks from contact/career URLs.
+5. **Discovery answers are catalog-driven.** `deterministic_grounded_synthesis` builds DISCOVERY tables from `app/catalog.json`, so a stale or partial catalog produces wrong tables even when Qdrant is healthy.
+6. **Windows console + eval.** `scripts/run_eval.py` prints emoji; run it as `$env:PYTHONIOENCODING='utf-8'; python -m scripts.run_eval` in PowerShell.
+7. **Two chat contracts, one pipeline.** `POST /api/chat` returns `ChatResponse` (answer, sources, intent) and is covered by tests, eval and docs; `POST /api/chat/ui` returns `UIChatResponse` and is only a projection built by `app/ui_view.py`. Never reshape `/api/chat` to satisfy the browser.
+8. **The view model parses the deterministic markdown.** `app/ui_view.py` keys off the table headers produced by `deterministic_grounded_synthesis` (`Detail`, `Product Name`, `Feature / Detail`). Change those headings and the UI silently loses its spec grid, cards or comparison layout. `tests/test_ui_view.py` is the guard.
+9. **The UI has no canned answers.** The browser must never ship demo or fallback prose about products; an unreachable API renders an error bubble. Keeping client-side "demo mode" would fabricate figures the pipeline never verified.
+10. **Feedback is a record, not learning.** `POST /api/feedback` appends to `data/feedback.jsonl` for offline review. It does not cache answers, re-rank, or train anything, and no UI copy may claim otherwise.
+
+---
+
+## 7. End-of-Session Handoff Checklist
 
 Before ending your turn or when a model quota is nearing completion:
 1. **Update `memory.md`**:
@@ -95,3 +112,4 @@ Before ending your turn or when a model quota is nearing completion:
      ```
 2. **Report State**:
    - Give the user a concise summary of what was accomplished and what the next session will execute.
+   - State the verification you actually ran: test count, eval score, and any live index mutation (points added, indexed, or deleted).

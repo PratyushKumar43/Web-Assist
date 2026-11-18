@@ -10,6 +10,7 @@ from qdrant_client.models import (
     Distance,
     Fusion,
     FusionQuery,
+    PayloadSchemaType,
     PointStruct,
     Prefetch,
     SparseVector,
@@ -72,6 +73,16 @@ class QdrantHybridIndexer:
             )
             logger.info("Collection '%s' created successfully.", self.collection_name)
 
+        # Keyword index so retrieval can filter by category (idempotent)
+        try:
+            self.client.create_payload_index(
+                collection_name=self.collection_name,
+                field_name="category",
+                field_schema=PayloadSchemaType.KEYWORD,
+            )
+        except Exception as exc:  # index already present or backend unsupported
+            logger.debug("Category payload index unavailable: %s", exc)
+
     def upsert_chunks(self, chunks: List[Dict[str, Any]], batch_size: int = 32) -> int:
         """Embed and upsert chunks in batches directly into Qdrant."""
         if not chunks:
@@ -133,7 +144,12 @@ class QdrantHybridIndexer:
 
         return total_chunks
 
-    def hybrid_search(self, query: str, top_k: int = 6) -> List[Dict[str, Any]]:
+    def hybrid_search(
+        self,
+        query: str,
+        top_k: int = 6,
+        query_filter: Optional[Any] = None,
+    ) -> List[Dict[str, Any]]:
         """Perform hybrid search with Reciprocal Rank Fusion (RRF) in Qdrant."""
         # 1. Encode query with dense and sparse models
         dense_q = list(self.dense_model.embed([query]))[0].tolist()
@@ -155,6 +171,7 @@ class QdrantHybridIndexer:
             ],
             query=FusionQuery(fusion=Fusion.RRF),
             limit=top_k,
+            query_filter=query_filter,
         )
 
         results: List[Dict[str, Any]] = []

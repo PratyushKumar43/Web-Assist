@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from app.catalog import compile_and_save_catalog
+from app.catalog_chunks import generate_catalog_overview_chunks
 from app.chunk import chunk_document
 from app.clean import clean_page_content
 from app.config import settings
@@ -122,6 +123,11 @@ async def main() -> None:
         page_chunks = chunk_document(page, product_meta=prod_meta)
         all_chunks.extend(page_chunks)
     logger.info("Generated %d total chunks across %d pages.", len(all_chunks), len(pages))
+
+    # Step 4b: Synthetic catalog anchors for broad discovery queries
+    anchor_chunks = generate_catalog_overview_chunks(catalog)
+    all_chunks.extend(anchor_chunks)
+    logger.info("Added %d catalog anchor chunks.", len(anchor_chunks))
 
     # Step 5: Upsert into Qdrant Cloud
     logger.info("Connecting to Qdrant and upserting hybrid vectors...")

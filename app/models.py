@@ -48,6 +48,56 @@ class ChatResponse(BaseModel):
     )
 
 
+class UISpec(BaseModel):
+    """One label/value pair in the UI specification grid (FACT answers)."""
+
+    label: str = Field(description="Specification name, e.g. 'Annual Fee'.")
+    value: str = Field(description="Verified specification value.")
+
+
+class UICard(BaseModel):
+    """One product card in the UI carousel (DISCOVERY and COMPARISON answers)."""
+
+    name: str = Field(description="Exact product name from the catalog.")
+    category: str = Field(description="Product category.")
+    fee: str = Field(default="N/A", description="Annual / joining fee as published.")
+    requirement: str = Field(default="N/A", description="Eligibility or minimum requirement.")
+    highlight: str = Field(default="", description="One-line product summary.")
+    url: str = Field(default="", description="Official product page URL.")
+
+
+class UIChatResponse(BaseModel):
+    """Browser view model: a render-ready projection of `ChatResponse`."""
+
+    interaction_id: str = Field(description="Opaque id used to attach feedback to this answer.")
+    intent: str = Field(default="FACT", description="Routed intent for the badge.")
+    answerable: bool = Field(default=True, description="False when the bot fell back.")
+    cache_hit: bool = Field(
+        default=False,
+        description="True only if the answer came from a verified answer cache.",
+    )
+    intro: str = Field(default="", description="Lead-in sentence above the structured blocks.")
+    specs: List[UISpec] = Field(default_factory=list, description="Label/value grid.")
+    cards: List[UICard] = Field(default_factory=list, description="Product card carousel.")
+    bullets: List[str] = Field(default_factory=list, description="Plain bullet points.")
+    sources: List[SourceItem] = Field(default_factory=list, description="Verified citations.")
+    next_chips: List[str] = Field(default_factory=list, description="Suggested follow-up chips.")
+
+
+class FeedbackRequest(BaseModel):
+    """Thumbs up / down on a single answer."""
+
+    interaction_id: str = Field(min_length=1, description="Id returned with the answer.")
+    rating: Literal["up", "down"] = Field(description="'up' for accurate, 'down' to flag an issue.")
+
+
+class FeedbackResponse(BaseModel):
+    """Acknowledgement that a rating was recorded."""
+
+    status: str = Field(default="recorded", description="Always 'recorded' on success.")
+    interaction_id: str = Field(description="Echo of the rated answer id.")
+
+
 class HealthResponse(BaseModel):
     """API health status and runtime information."""
 

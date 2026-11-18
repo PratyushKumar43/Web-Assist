@@ -59,8 +59,49 @@ def test_api_chat_endpoint_fallback():
 
 
 def test_static_index_html():
-    """Verify root / serves the HTML browser chat interface."""
+    """Verify root / serves the WhatsApp-style HTML chat interface."""
     res = client.get("/")
     assert res.status_code == 200
-    assert "Emirates NBD Assistant" in res.text
+    assert "Lexi" in res.text
     assert "Qdrant Hybrid RAG" in res.text
+    assert "/api/chat/ui" in res.text
+
+
+def test_api_chat_ui_endpoint_returns_view_model():
+    """Verify POST /api/chat/ui returns the render-ready payload the browser draws."""
+    payload = {
+        "session_id": "test-session-ui",
+        "message": "What savings and account options can I open?",
+    }
+    res = client.post("/api/chat/ui", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["intent"] == "DISCOVERY"
+    assert data["cache_hit"] is False
+    assert data["answerable"] is True
+    assert data["interaction_id"]
+    assert data["intro"]
+    assert len(data["cards"]) > 0
+    card = data["cards"][0]
+    for key in ("name", "category", "fee", "requirement", "highlight", "url"):
+        assert key in card
+    assert len(data["sources"]) > 0
+    assert data["next_chips"]
+
+
+def test_api_feedback_endpoint_records_rating():
+    """Verify POST /api/feedback acknowledges an answer rating."""
+    res = client.post(
+        "/api/feedback",
+        json={"interaction_id": "abc123", "rating": "up"},
+    )
+    assert res.status_code == 200
+    assert res.json() == {"status": "recorded", "interaction_id": "abc123"}
+
+
+def test_api_feedback_rejects_unknown_rating():
+    """Verify the rating field is validated."""
+    res = client.post("/api/feedback", json={"interaction_id": "abc123", "rating": "sideways"})
+    assert res.status_code == 422
+

@@ -39,8 +39,9 @@ In accordance with engineering standards and transparency guidelines:
    - **Tier 4**: Numerical fact cross-check against retrieved context.
    - **Tier 5**: Server-constructed source citations with crawl dates.
 6. **Zero-Build Modern Chat UI**:
-   - Single-file interface (`static/index.html`) using Tailwind CSS CDN, DOMPurify, and Marked.js.
-   - Interactive source citation pills, amber fallback warnings, and a slide-over Covered Products drawer.
+   - Single-file interface (`static/index.html`): inline CSS and vanilla JS, no CDN or build step.
+   - WhatsApp-style shell with intent badges, swipeable product cards, a FACT spec grid, collapsible citations, and amber fallback bubbles.
+   - The browser renders a typed view model (`POST /api/chat/ui`); it parses no markdown and holds no canned answers.
 
 ---
 
@@ -50,12 +51,12 @@ Automated evaluation against the 15-question golden benchmark (`python -m script
 
 | Question Category | Questions | Pass Rate | Avg Latency | Key Highlights |
 |---|---|---|---|---|
-| **Single Product Fact** | 3 / 3 | **100%** | 0.75s | Exact fee extraction (`AED 262.50`), salary requirements |
-| **Product Discovery** | 3 / 3 | **100%** | 0.20s | Full catalog listing across cards and accounts |
-| **Comparison** | 3 / 3 | **100%** | 0.37s | Parallel dual sub-query retrieval (`asyncio.gather`) |
-| **Follow-up (Multi-turn)** | 3 / 3 | **100%** | 0.23s | Pronoun rewriter resolves "its", "that card" |
+| **Single Product Fact** | 3 / 3 | **100%** | 1.27s | Exact fee extraction (`AED 262.50`), salary requirements |
+| **Product Discovery** | 3 / 3 | **100%** | 0.52s | Full catalog listing across cards and accounts |
+| **Comparison** | 3 / 3 | **100%** | 0.67s | Parallel dual sub-query retrieval (`asyncio.gather`) |
+| **Follow-up (Multi-turn)** | 3 / 3 | **100%** | 0.83s | Pronoun rewriter resolves "its", "that card" |
 | **Out-of-Scope Fallback** | 3 / 3 | **100%** | 0.01s | Polite refusal; zero hallucination on off-topic / injections |
-| **Overall Total** | **15 / 15** | **100.0%** | **0.31s** | **100% Fallback Precision & Citation Integrity** |
+| **Overall Total** | **15 / 15** | **100.0%** | **0.66s** | **100% Fallback Precision & Citation Integrity** |
 
 ---
 
@@ -116,7 +117,7 @@ fastapi dev app/main.py
 
 ## 🧪 Testing & Evaluation
 
-### Run Complete Pytest Suite (29 Tests)
+### Run Complete Pytest Suite (78 Tests)
 ```bash
 pytest tests/ -v
 ```
@@ -135,8 +136,9 @@ Full detailed results and Markdown summaries are written to `data/eval_report.md
 Web-Assist/
 ├── app/
 │   ├── config.py           # Pydantic BaseSettings & env validation
-│   ├── models.py           # Canonical Pydantic schemas (ChatRequest, ChatResponse, SourceItem)
-│   ├── main.py             # FastAPI backend with /api/chat, /api/products, /api/health
+│   ├── models.py           # Canonical Pydantic schemas (ChatRequest, ChatResponse, UIChatResponse)
+│   ├── main.py             # FastAPI backend with /api/chat, /api/chat/ui, /api/feedback, /api/products, /api/health
+│   ├── ui_view.py          # Projects a grounded answer onto the UI view model
 │   ├── scraper.py          # Resilient crawler (Firecrawl, TinyFish failover, polite parser)
 │   ├── clean.py            # Currency normalizer (\uEAEF -> AED) and boilerplate cleaner
 │   ├── catalog.py          # Product classifier and catalog builder
@@ -159,11 +161,13 @@ Web-Assist/
 │   ├── run_crawl.py          # Standalone crawler runner
 │   └── run_eval.py           # 15-question automated benchmark runner
 ├── static/
-│   └── index.html            # Zero-build Tailwind CSS & Marked.js browser chat UI
+│   └── index.html            # Zero-build WhatsApp-style browser chat UI
 ├── tests/
 │   ├── test_scraper.py       # Phase 1 crawler & manifest unit tests
 │   ├── test_pipeline.py      # Phase 2 & 3 clean, catalog, chunking tests
 │   ├── test_graph.py         # Phase 4 LangGraph workflow tests
+│   ├── test_conversational_flows.py # Routing, memory, noise and anchor regressions
+│   ├── test_ui_view.py       # UI view model projection tests
 │   ├── test_api.py           # Phase 5 FastAPI integration tests
 │   └── eval_set.json         # 15 golden questions dataset
 ├── vercel.json               # Serverless deployment configuration
