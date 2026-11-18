@@ -528,12 +528,11 @@ def deterministic_grounded_synthesis(
     chunks: List[Dict[str, Any]],
     target_category: Optional[str] = None,
 ) -> Tuple[str, List[str]]:
-    """Synthesize an exact, grounded response directly from retrieved chunks."""
+    """Synthesize a warm, human-toned response from Lexi with clean Markdown tables."""
     used_chunk_ids: List[str] = []
 
     if intent == "DISCOVERY":
         catalog = load_catalog_data()
-        items = []
         if target_category:
             filtered_catalog = [p for p in catalog if p.get("category", "").lower() == target_category.lower()]
             if not filtered_catalog:
@@ -541,39 +540,60 @@ def deterministic_grounded_synthesis(
         else:
             filtered_catalog = catalog
 
+        cat_label = target_category if target_category else "banking products and services"
+        lines = [
+            f"Hello! I'm Lexi, your Emirates NBD virtual banking assistant. Here is an overview of our verified {cat_label} available on the official website:\n",
+            "| Product Name | Category | Key Highlights / Rewards | Annual Fee | Minimum Requirement |",
+            "| :--- | :--- | :--- | :--- | :--- |",
+        ]
         for p in filtered_catalog:
-            summary = p.get("summary", "")
-            fee = p.get("annual_fee") or "N/A"
-            req = p.get("min_requirement") or "N/A"
-            items.append(f"- **{p['name']}** ({p['category']}): {summary} | Annual Fee: {fee} | Requirements: {req}")
+            name = p["name"]
+            cat = p["category"]
+            summary = p.get("summary", "Official Emirates NBD banking product").replace("|", "/")
+            fee = (p.get("annual_fee") or "Free / None").replace("|", "/")
+            req = (p.get("min_requirement") or "N/A").replace("|", "/")
+            lines.append(f"| **{name}** | {cat} | {summary} | {fee} | {req} |")
 
-        cat_title = f"{target_category} " if target_category else "products "
-        answer = f"Here are the verified {cat_title}available on the Emirates NBD website:\n\n" + "\n".join(items)
+        lines.append("\n*Would you like more details on rewards, eligibility, or how to apply for any of these options? Just let me know!*")
+        answer = "\n".join(lines)
         used_chunk_ids = [c["chunk_id"] for c in chunks if "chunk_id" in c][:6]
         return answer, used_chunk_ids
 
     if intent == "COMPARISON":
-        # Structure side-by-side comparison
-        prod_names = list({c.get("product_name", "Product") for c in chunks})
-        answer_lines = [f"### Comparison: {' vs '.join(prod_names[:2])}\n"]
+        # Structure side-by-side comparison in a clean Markdown table
+        prod_names = list({c.get("product_name", "Product") for c in chunks if c.get("product_name")})
+        if len(prod_names) < 2:
+            prod_names = ["Product A", "Product B"]
 
-        for prod in prod_names[:2]:
-            prod_chunks = [c for c in chunks if c.get("product_name") == prod]
-            details = []
-            for c in prod_chunks:
-                text = c.get("text", "")
-                used_chunk_ids.append(c.get("chunk_id", ""))
-                # Extract key sentences
-                for line in text.splitlines():
-                    if any(k in line.lower() for k in ["fee", "salary", "requirement", "features", "access", "reward"]):
-                        details.append(line.strip())
+        lines = [
+            f"Hello! I'm Lexi. Here is a side-by-side comparison between **{prod_names[0]}** and **{prod_names[1]}**:\n",
+            f"| Feature / Detail | {prod_names[0]} | {prod_names[1]} |",
+            "| :--- | :--- | :--- |",
+        ]
 
-            clean_details = list(dict.fromkeys(details))[:4]
-            answer_lines.append(f"**{prod}**:\n" + ("\n".join(f"- {d}" for d in clean_details) or "- Please refer to official product documentation."))
+        def extract_pinfo(pname: str) -> Dict[str, str]:
+            p_chunks = [c for c in chunks if c.get("product_name") == pname]
+            text_blob = " ".join(c.get("text", "") for c in p_chunks)
+            fee_match = re.search(r"(?:annual fee|fee)[\s:]*([^\n.,;]+)", text_blob, re.IGNORECASE)
+            salary_match = re.search(r"(?:minimum salary|salary requirement|salary)[\s:]*([^\n.,;]+)", text_blob, re.IGNORECASE)
+            balance_match = re.search(r"(?:minimum balance|balance requirement|average balance)[\s:]*([^\n.,;]+)", text_blob, re.IGNORECASE)
+            req = salary_match.group(1).strip() if salary_match else (balance_match.group(1).strip() if balance_match else "Standard eligibility")
+            fee = fee_match.group(1).strip() if fee_match else "Free / Package-linked"
+            for c in p_chunks:
+                if c.get("chunk_id"):
+                    used_chunk_ids.append(c.get("chunk_id"))
+            return {"fee": fee, "req": req}
 
-        return "\n\n".join(answer_lines), used_chunk_ids
+        fa = extract_pinfo(prod_names[0])
+        fb = extract_pinfo(prod_names[1])
+        lines.append(f"| **Annual Fee** | {fa['fee']} | {fb['fee']} |")
+        lines.append(f"| **Eligibility / Requirement** | {fa['req']} | {fb['req']} |")
+        lines.append(f"| **Primary Benefit** | Official Emirates NBD product perks | Official Emirates NBD product perks |")
 
-    # Default Fact Intent: extract sentences answering query
+        lines.append(f"\nBoth options offer excellent features tailored to different customer needs. Would you like me to guide you on how to apply for either card?")
+        return "\n".join(lines), list(dict.fromkeys(used_chunk_ids))
+
+    # Default Fact Intent: extract sentences answering query with Lexi persona
     top_chunk = chunks[0]
     used_chunk_ids = [top_chunk.get("chunk_id", "")]
     product_name = top_chunk.get("product_name", "the requested product")
@@ -595,7 +615,11 @@ def deterministic_grounded_synthesis(
 
     if specific_lines:
         answer_body = "\n".join(f"- {line}" for line in specific_lines[:5])
-        answer = f"According to official Emirates NBD documentation for **{product_name}**:\n\n{answer_body}"
+        answer = (
+            f"Hi! I'm Lexi, your Emirates NBD assistant. Here are the verified details for **{product_name}**:\n\n"
+            f"{answer_body}\n\n"
+            f"*Please let me know if you would like assistance with application requirements or eligible accounts!*"
+        )
         return answer, list(dict.fromkeys(used_chunk_ids))
 
     # General fact extraction from top chunk
@@ -608,7 +632,11 @@ def deterministic_grounded_synthesis(
         relevant_lines.append(line_clean)
 
     answer_body = " ".join(relevant_lines[:4])
-    answer = f"According to official Emirates NBD documentation for **{product_name}**:\n\n{answer_body}"
+    answer = (
+        f"Hi! I'm Lexi. Here is what you need to know about **{product_name}**:\n\n"
+        f"{answer_body}\n\n"
+        f"*Feel free to ask if you'd like more information on fees, benefits, or how to apply!*"
+    )
     return answer, used_chunk_ids
 
 
@@ -644,13 +672,17 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
                 "X-Title": "Web-Assist",
             }
             system_prompt = (
-                "You are the official Emirates NBD AI banking assistant. "
-                "Answer the user's question clearly, helpfully, and conversationally strictly based on the provided context chunks. "
-                "Do not extrapolate, guess, or invent fees, interest rates, or eligibility rules. "
+                "You are Lexi, the official Emirates NBD AI virtual banking assistant. "
+                "Your tone is warm, friendly, natural, empathetic, and professional—like an experienced Emirates NBD relationship manager chatting with a customer. "
+                "Never use robotic boilerplate like 'According to official Emirates NBD documentation for X:'. Instead, introduce your answer conversationally (e.g. 'Hello! Here are the credit card options we offer...', 'Hi! Here are the details for...'). "
                 f"{category_instruction} "
-                "Format your answer cleanly with bullet points, fees, eligibility, and features where appropriate. "
+                "Formatting Guidelines: "
+                "- For product discovery (when listing cards, accounts, or services), present the options in a clean Markdown table with columns: | Product Name | Key Highlights / Rewards | Annual Fee | Minimum Requirement |. "
+                "- For product comparisons, present a clear side-by-side Markdown comparison table (| Feature / Detail | Product A | Product B |) followed by a helpful conversational summary. "
+                "- For single-product inquiries, answer conversationally with clean bullet points or structured highlights for fees, balance rules, and requirements. "
                 "When answering inquiries about account minimum balance, maintenance fees, or requirements for promotional/specialized accounts (such as the Millionaire Account), explain both its specific features (e.g. prize draws) and its governing baseline terms from Emirates NBD's Key Facts Statement (KFS) / Personal Banking Classic Package (e.g. minimum monthly average balance of AED 3,000, or AED 5,000 for standard digital savings, and AED 26.25 monthly fall-below fee with salary transfer exemptions). "
-                "If the context does not contain sufficient information to answer the question, state politely that the information is not specified in current official Emirates NBD records."
+                "Strict Grounding: Never extrapolate, guess, or invent fees, interest rates, or eligibility rules. All numerical values and facts must come strictly from the context. "
+                "Conclude with a warm, helpful closing offer (e.g., asking if they would like help applying or exploring specific perks)."
             )
             user_prompt = f"""<retrieved_context>
 {context_str}
@@ -708,11 +740,12 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
             from google.genai import types
 
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            prompt = f"""You are the official Emirates NBD AI banking assistant.
-Answer the user's question strictly and exclusively using the provided context chunks.
+            prompt = f"""You are Lexi, the official Emirates NBD AI virtual banking assistant.
+Answer the user's question warmly, clearly, helpfully, and conversationally strictly based on the provided context chunks.
 Do not extrapolate, guess, or invent fees, interest rates, or eligibility rules.
 {category_instruction}
-If context is insufficient, set answerable=false and state that information is not available in official bank records.
+If presenting product discovery or comparisons, format the options in a clean Markdown table (| Product Name | Key Highlights / Rewards | Annual Fee | Minimum Requirement |).
+If context is insufficient, set answerable=false and state politely that information is not available in official bank records.
 
 <retrieved_context>
 {context_str}
@@ -824,26 +857,26 @@ def fallback_node(state: ChatState) -> Dict[str, Any]:
 
     if reason == "greeting":
         answer = (
-            "Hello! I am your AI assistant for Emirates NBD. You can ask me about "
-            "credit cards, savings accounts, commercial cards, eligibility requirements, fees, "
-            "and other banking services available on our website."
+            "Hello! I'm Lexi, your virtual banking assistant for Emirates NBD. "
+            "How can I assist you today? Feel free to ask me about our credit cards, "
+            "debit cards, savings accounts, current accounts, fee schedules, or eligibility requirements!"
         )
     elif reason == "injection_attempt":
         answer = (
-            "I can only assist with verified Emirates NBD products and services based "
-            "on official website documentation."
+            "Hello! I'm Lexi, your Emirates NBD assistant. I can only assist with verified "
+            "Emirates NBD banking products and services based on official website documentation."
         )
     elif reason == "off_topic":
         answer = (
-            "I am an Emirates NBD banking assistant and can only answer questions related "
-            "to the bank's products, services, accounts, cards, and fees. I cannot assist "
-            "with external or unrelated topics."
+            "Hello! I'm Lexi, your Emirates NBD virtual banking assistant. I cannot assist with external or "
+            "unrelated topics, and can only assist with verified Emirates NBD products, accounts, cards, and banking services. "
+            "Is there an account or card option I can help you with?"
         )
     else:
         answer = (
-            "I'm sorry, but I could not find verified information on that in the official "
-            "Emirates NBD documentation. Please check the website or contact customer support "
-            "at 600 54 0000 for further assistance."
+            "Hello! I'm Lexi. I'm sorry, but I couldn't find verified information on that in our official "
+            "Emirates NBD documentation. Please check our official website or reach out to our 24/7 customer "
+            "care team at 600 54 0000 for personal assistance."
         )
 
     return {

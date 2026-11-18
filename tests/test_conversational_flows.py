@@ -148,6 +148,8 @@ def test_deterministic_synthesis_category_filtering():
         [{"chunk_id": "c1", "text": "Visa Classic Debit Card"}],
         target_category="Debit Cards",
     )
+    assert "Lexi" in ans
+    assert "| Product Name | Category |" in ans
     assert "Debit Cards" in ans
     assert "Visa Classic Debit Card" in ans
     assert "U By Emaar Signature Credit Card" not in ans
@@ -160,6 +162,8 @@ def test_deterministic_synthesis_category_filtering():
         [{"chunk_id": "c2", "text": "Skywards Signature"}],
         target_category="Credit Cards",
     )
+    assert "Lexi" in ans_cc
+    assert "| Product Name | Category |" in ans_cc
     assert "Credit Cards" in ans_cc
     assert "Skywards Signature Credit Card" in ans_cc or "Emirates NBD Skywards" in ans_cc or "U By Emaar" in ans_cc
     assert "Standard Current Account" not in ans_cc
