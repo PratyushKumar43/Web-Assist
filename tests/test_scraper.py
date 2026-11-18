@@ -7,8 +7,10 @@ from app.db import init_db, upsert_page, get_page_by_url, get_all_pages
 from app.scraper import (
     compute_content_hash,
     is_same_domain,
+    clean_url,
     RobotsPolitenessValidator,
     LocalCleanCrawler,
+    ResilientIngestionEngine,
 )
 
 
@@ -22,10 +24,18 @@ def test_content_hash_deterministic():
     assert len(h1) == 16
 
 
+def test_clean_url():
+    """Verify URL normalization removes fragments and trailing slashes."""
+    assert clean_url("https://example.com/cards#fees") == "https://example.com/cards"
+    assert clean_url("https://example.com/cards/") == "https://example.com/cards"
+    assert clean_url("https://example.com/") == "https://example.com/"
+
+
 def test_domain_filtering():
     """Verify crawler strictly limits traversal to target domain."""
-    base = "https://example.com"
-    assert is_same_domain("https://example.com/cards", base) is True
+    base = "https://www.example.com/en"
+    assert is_same_domain("https://www.example.com/en/cards", base) is True
+    assert is_same_domain("https://example.com/en/cards", base) is True
     assert is_same_domain("https://sub.example.com/cards", base) is True
     assert is_same_domain("https://malicious.com", base) is False
     assert is_same_domain("https://google.com/search", base) is False
@@ -91,7 +101,7 @@ def test_local_clean_crawler_table_preservation():
     for tag in soup(["script", "style", "nav", "footer"]):
         tag.decompose()
 
-    markdown_text = md(str(soup), heading_style="ATX", strip=["a", "img"])
+    markdown_text = md(str(soup), heading_style="ATX", strip=["img"])
     markdown_text = re.sub(r"\n{3,}", "\n\n", markdown_text).strip()
 
     assert title == "Credit Card Fees"

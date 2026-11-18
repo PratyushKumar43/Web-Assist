@@ -1,9 +1,15 @@
 """Application configuration using Pydantic Settings."""
 
 import os
+from pathlib import Path
 from typing import Optional
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Explicitly load .env file into os.environ if present
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path, override=True)
 
 
 class Settings(BaseSettings):

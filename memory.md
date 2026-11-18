@@ -13,12 +13,16 @@
 
 ## 2. Current Status
 
-- **Current Phase**: Phase 1 Complete -> Transitioning to Phase 2 (Product Catalog & Coverage Audit)
-- **Last Exit Check Passed**: Phase 0 (Scaffolding & `fastapi dev` health check) & Phase 1 (Resilient Ingestion, TinyFish failover, Politeness, Table preservation, and SQLite manifest). All 4 unit tests passing.
-- **Build State**: Core application foundation and resilient web scraper operational.
+- **Current Phase**: Phase 1 Verified & Complete -> Ready for Phase 2 (Product Catalog & Coverage Audit)
+- **Last Exit Check Passed**:
+  - Live scraping tested on target site via both **Firecrawl** and **TinyFish AI**. Both return HTTP 200 with clean Markdown and table structures.
+  - Automated URL discovery (Firecrawl map + sitemap XML) and breadth-first crawl queue operational.
+  - Caching in `data/raw/<hash>.md` and SQLite manifest in `app/db.py` fully verified on live pages.
+  - 5/5 automated tests in `tests/test_scraper.py` passing.
+- **Build State**: Core application scaffolding, resilient dual-engine crawler, and batch CLI tool completed.
 - **Git Remote**: `https://github.com/PratyushKumar43/Web-Assist.git` (origin configured).
 - **Server CLI**: `fastapi dev app/main.py`
-- **Next Action**: Implement Phase 2: Catalog extraction (`app/catalog.py`), `products_catalog.json` generation, and automated coverage report (`data/coverage_report.md`).
+- **Next Action**: Implement Phase 2: Product catalog extraction (`app/catalog.py`), `products_catalog.json` generation, and automated coverage report (`data/coverage_report.md`).
 
 ---
 
@@ -84,3 +88,4 @@
 | 2026-11-18 | Resilient Ingestion & Pydantic | Replaced trafilatura with TinyFish AI fallback; incorporated Pydantic v2 throughout architecture and models | Setup CLI, guardrails & .env.example |
 | 2026-11-18 | Dev CLI, Guardrails & .env | Added `fastapi dev` command, created comprehensive `.env.example`, documented 5-tier guardrails | Scaffold Phase 0 code |
 | 2026-11-18 | Phase 0 & Phase 1 Implemented | Completed scaffolding (FastAPI, config, models, vercel.json, Docker) and resilient crawler (Firecrawl + TinyFish failover, robots.txt politeness, SQLite manifest). 4 unit tests passing. | Phase 2: Catalog extraction & coverage audit |
+| 2026-11-18 | Live Scraper Verification | Tested Firecrawl and TinyFish AI against live target site (.env). Discovered URLs via /v1/map and sitemap.xml. Successfully cached raw pages to data/raw and SQLite manifest. 5/5 tests passing. | Phase 2: Product catalog extraction & coverage report |
