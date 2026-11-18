@@ -90,10 +90,14 @@ class Settings(BaseSettings):
         description="Path for local embedded Qdrant storage.",
     )
 
-    # 5. Local SQLite Manifest
+    # 5. Local SQLite Manifest & URL Registry
     SQLITE_DB_PATH: str = Field(
         default="./data/kb.db",
         description="Path for SQLite database storing pages, products, and chunks manifest.",
+    )
+    REGISTRY_DB_PATH: str = Field(
+        default="./data/registry.db",
+        description="Path for persistent SQLite URL registry.",
     )
 
     # 6. Guardrails & Thresholds
