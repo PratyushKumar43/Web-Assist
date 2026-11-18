@@ -148,7 +148,7 @@ def test_deterministic_synthesis_category_filtering():
         [{"chunk_id": "c1", "text": "Visa Classic Debit Card"}],
         target_category="Debit Cards",
     )
-    assert "Lexi" in ans
+    assert "Hi! I'm Lexi" not in ans
     assert "| Product Name | Category |" in ans
     assert "Debit Cards" in ans
     assert "Visa Classic Debit Card" in ans
@@ -162,11 +162,30 @@ def test_deterministic_synthesis_category_filtering():
         [{"chunk_id": "c2", "text": "Skywards Signature"}],
         target_category="Credit Cards",
     )
-    assert "Lexi" in ans_cc
+    assert "Hi! I'm Lexi" not in ans_cc
     assert "| Product Name | Category |" in ans_cc
     assert "Credit Cards" in ans_cc
     assert "Skywards Signature Credit Card" in ans_cc or "Emirates NBD Skywards" in ans_cc or "U By Emaar" in ans_cc
     assert "Standard Current Account" not in ans_cc
+
+
+@pytest.mark.asyncio
+async def test_gold_savings_certificate_rich_synthesis():
+    """Verify Gold Savings Certificate provides full terms (100g, 999.9 fineness, branch redemption) without breadcrumb dumps."""
+    from app.graph.workflow import run_chat_turn
+
+    resp = await run_chat_turn("i want to know Gold Savings Certificate")
+    assert resp.answerable is True
+    assert resp.intent == "FACT"
+    # Must NOT have raw breadcrumb line
+    assert "Product: Gold Saving Certificates > Overview" not in resp.answer
+    # Must NOT repeat "Hi! I'm Lexi" in body
+    assert "Hi! I'm Lexi" not in resp.answer
+    # Must contain rich verified terms
+    ans_lower = resp.answer.lower()
+    assert "100" in ans_lower or "grams" in ans_lower
+    assert "999.9" in ans_lower or "fineness" in ans_lower or "gold" in ans_lower
+    assert "redemption" in ans_lower or "branch" in ans_lower or "cash" in ans_lower
 
 
 def test_citation_builder_category_filtering():

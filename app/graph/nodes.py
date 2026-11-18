@@ -112,7 +112,7 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
         return {"standalone_query": clean_query}
 
     catalog = load_catalog_data()
-    known_products = [p["name"] for p in catalog]
+    known_products = sorted([p["name"] for p in catalog], key=len, reverse=True)
 
     # If the user is asking a broad question about what the bank provides/offers
     broad_inquiry_patterns = [
@@ -128,8 +128,10 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
     last_subject: Optional[str] = None
     for msg in reversed(messages):
         content = msg.get("content", "")
+        content_norm = re.sub(r"s\b", "", content.lower())
         for prod in known_products:
-            if prod.lower() in content.lower():
+            prod_norm = re.sub(r"s\b", "", prod.lower())
+            if prod_norm in content_norm:
                 last_subject = prod
                 break
         if last_subject:
@@ -528,7 +530,7 @@ def deterministic_grounded_synthesis(
     chunks: List[Dict[str, Any]],
     target_category: Optional[str] = None,
 ) -> Tuple[str, List[str]]:
-    """Synthesize a warm, human-toned response from Lexi with clean Markdown tables."""
+    """Synthesize a warm, human-toned response with clean Markdown tables without repeating self-introductions."""
     used_chunk_ids: List[str] = []
 
     if intent == "DISCOVERY":
@@ -542,7 +544,7 @@ def deterministic_grounded_synthesis(
 
         cat_label = target_category if target_category else "banking products and services"
         lines = [
-            f"Hello! I'm Lexi, your Emirates NBD virtual banking assistant. Here is an overview of our verified {cat_label} available on the official website:\n",
+            f"Here is an overview of the verified {cat_label} available with Emirates NBD:\n",
             "| Product Name | Category | Key Highlights / Rewards | Annual Fee | Minimum Requirement |",
             "| :--- | :--- | :--- | :--- | :--- |",
         ]
@@ -566,7 +568,7 @@ def deterministic_grounded_synthesis(
             prod_names = ["Product A", "Product B"]
 
         lines = [
-            f"Hello! I'm Lexi. Here is a side-by-side comparison between **{prod_names[0]}** and **{prod_names[1]}**:\n",
+            f"Here is a side-by-side comparison between **{prod_names[0]}** and **{prod_names[1]}**:\n",
             f"| Feature / Detail | {prod_names[0]} | {prod_names[1]} |",
             "| :--- | :--- | :--- |",
         ]
@@ -590,53 +592,125 @@ def deterministic_grounded_synthesis(
         lines.append(f"| **Eligibility / Requirement** | {fa['req']} | {fb['req']} |")
         lines.append(f"| **Primary Benefit** | Official Emirates NBD product perks | Official Emirates NBD product perks |")
 
-        lines.append(f"\nBoth options offer excellent features tailored to different customer needs. Would you like me to guide you on how to apply for either card?")
+        lines.append(f"\nBoth options offer excellent features tailored to different customer needs. Would you like me to guide you on how to apply for either option?")
         return "\n".join(lines), list(dict.fromkeys(used_chunk_ids))
 
-    # Default Fact Intent: extract sentences answering query with Lexi persona
-    top_chunk = chunks[0]
-    used_chunk_ids = [top_chunk.get("chunk_id", "")]
-    product_name = top_chunk.get("product_name", "the requested product")
+    # Default Fact Intent: extract sentences answering query across ALL chunks
+    catalog = load_catalog_data()
+    top_chunk = chunks[0] if chunks else {}
+    top_chunk_prod = top_chunk.get("product_name", "")
 
-    # If query asks for a specific fact (fee, salary, requirements), find matching lines across chunks
+    # Resolve product from catalog: check exact or normalized phrase match first (sorted by length descending)
+    matching_catalog_prod = None
     query_lower = query.lower()
+    q_norm = re.sub(r"s\b", "", query_lower)
+
+    for p in sorted(catalog, key=lambda x: len(x["name"]), reverse=True):
+        p_name_lower = p["name"].lower()
+        p_norm = re.sub(r"s\b", "", p_name_lower)
+        if p_name_lower in query_lower or p_norm in q_norm:
+            matching_catalog_prod = p
+            product_name = p["name"]
+            break
+        # Also check against top_chunk's product_name if present
+        if top_chunk_prod:
+            t_norm = re.sub(r"s\b", "", top_chunk_prod.lower())
+            if p_norm == t_norm or p_norm in t_norm:
+                matching_catalog_prod = p
+                product_name = p["name"]
+                break
+
+    if not matching_catalog_prod and top_chunk_prod:
+        product_name = top_chunk_prod
+    elif not matching_catalog_prod:
+        product_name = "the requested product"
+
+    # 1. Multi-chunk extraction & breadcrumb filtering
+    clean_facts = []
+    seen_facts = set()
+
+    for c in chunks:
+        if c.get("chunk_id"):
+            used_chunk_ids.append(c.get("chunk_id"))
+        text = c.get("text", "")
+        for line in text.splitlines():
+            line_clean = line.strip(" -*#_")
+            line_lower = line_clean.lower()
+            # Ignore empty lines, breadcrumbs, markdown images, raw URLs
+            if not line_clean or len(line_clean) < 15:
+                continue
+            if re.match(r"^product:\s*.*>\s*.*", line_clean, re.IGNORECASE):
+                continue
+            if line_clean.startswith("![") or line_clean.startswith("http") or line_clean.startswith("[View"):
+                continue
+            if "terms and conditions" in line_lower and len(line_clean) < 30:
+                continue
+
+            norm_key = re.sub(r"[^\w\s]", "", line_lower)[:60]
+            if norm_key not in seen_facts:
+                seen_facts.add(norm_key)
+                clean_facts.append(line_clean)
+
+    # 2. If we have a matching catalog record, format a rich specification table
+    if matching_catalog_prod:
+        cat_p = matching_catalog_prod
+        fee = cat_p.get("annual_fee") or "None / Free"
+        req = cat_p.get("min_requirement") or "N/A"
+        category = cat_p.get("category") or "Personal Banking"
+        summary = cat_p.get("summary", "")
+
+        table_lines = [
+            f"Here is what you need to know about **{product_name}**:\n",
+            "| Detail | Official Specifications |",
+            "| :--- | :--- |",
+            f"| **Category** | {category} |",
+            f"| **Annual / Joining Fee** | {fee} |",
+            f"| **Eligibility & Minimum Requirement** | {req} |",
+        ]
+
+        if "gold" in product_name.lower():
+            table_lines.append("| **Redemption & Liquidity** | Buy or redeem at any Emirates NBD branch prior to maturity in cash or gold bars |")
+
+        if clean_facts:
+            table_lines.append("\n**Key Features & Highlights:**")
+            for fact in clean_facts[:4]:
+                table_lines.append(f"- {fact}")
+        elif summary:
+            table_lines.append(f"\n**Summary:** {summary}")
+
+        table_lines.append("\n*Would you like more details on application procedures, rates, or eligible branch services?*")
+        return "\n".join(table_lines), list(dict.fromkeys(used_chunk_ids))
+
+    # 3. If query asks for specific attribute (fee, salary, requirements), highlight lines
     specific_lines = []
     if any(k in query_lower for k in ["fee", "charge", "cost", "salary", "requirement", "minimum", "balance", "joining"]):
-        for c in chunks:
-            text = c.get("text", "")
-            for line in text.splitlines():
-                line_lower = line.lower()
-                if any(w in line_lower for w in ["joining fee", "annual fee", "minimum salary", "minimum balance", "aed"]):
-                    clean_line = line.strip(" -*#")
-                    if clean_line and clean_line not in specific_lines:
-                        specific_lines.append(clean_line)
-                        if c.get("chunk_id"):
-                            used_chunk_ids.append(c.get("chunk_id"))
+        for fact in clean_facts:
+            f_lower = fact.lower()
+            if any(w in f_lower for w in ["joining fee", "annual fee", "minimum salary", "minimum balance", "aed", "grams", "fineness", "salary of"]):
+                if fact not in specific_lines:
+                    specific_lines.append(fact)
 
     if specific_lines:
-        answer_body = "\n".join(f"- {line}" for line in specific_lines[:5])
+        bullets = "\n".join(f"- {line}" for line in specific_lines[:5])
         answer = (
-            f"Hi! I'm Lexi, your Emirates NBD assistant. Here are the verified details for **{product_name}**:\n\n"
-            f"{answer_body}\n\n"
+            f"Here are the verified details for **{product_name}**:\n\n"
+            f"{bullets}\n\n"
             f"*Please let me know if you would like assistance with application requirements or eligible accounts!*"
         )
         return answer, list(dict.fromkeys(used_chunk_ids))
 
-    # General fact extraction from top chunk
-    chunk_text = top_chunk.get("text", "")
-    relevant_lines = []
-    for line in chunk_text.splitlines():
-        line_clean = line.strip()
-        if not line_clean or line_clean.startswith("#") or line_clean.startswith("!["):
-            continue
-        relevant_lines.append(line_clean)
+    # 4. General fallback with cleaned facts
+    if clean_facts:
+        bullets = "\n".join(f"- {line}" for line in clean_facts[:4])
+        answer = (
+            f"Here is what you need to know about **{product_name}**:\n\n"
+            f"{bullets}\n\n"
+            f"*Feel free to ask if you would like more information on fees, benefits, or how to apply!*"
+        )
+        return answer, list(dict.fromkeys(used_chunk_ids))
 
-    answer_body = " ".join(relevant_lines[:4])
-    answer = (
-        f"Hi! I'm Lexi. Here is what you need to know about **{product_name}**:\n\n"
-        f"{answer_body}\n\n"
-        f"*Feel free to ask if you'd like more information on fees, benefits, or how to apply!*"
-    )
+    # Fallback if no clean lines found
+    answer = f"Here is the official documentation for **{product_name}**. Please let me know what specific features or fees you would like to explore!"
     return answer, used_chunk_ids
 
 
@@ -674,7 +748,8 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
             system_prompt = (
                 "You are Lexi, the official Emirates NBD AI virtual banking assistant. "
                 "Your tone is warm, friendly, natural, empathetic, and professional—like an experienced Emirates NBD relationship manager chatting with a customer. "
-                "Never use robotic boilerplate like 'According to official Emirates NBD documentation for X:'. Instead, introduce your answer conversationally (e.g. 'Hello! Here are the credit card options we offer...', 'Hi! Here are the details for...'). "
+                "IMPORTANT: Do NOT start your message with 'Hi, I'm Lexi' or repeat your name on every turn. The chat interface already clearly displays your name. Only introduce yourself by name if the user explicitly greets you or asks who you are. "
+                "Never use robotic boilerplate like 'According to official Emirates NBD documentation for X:'. On standard queries, dive straight into answering the user's question with warm, professional phrasing (e.g. 'Here is what you need to know about...', 'Here are the details for...', 'Here is an overview of...'). "
                 f"{category_instruction} "
                 "Formatting Guidelines: "
                 "- For product discovery (when listing cards, accounts, or services), present the options in a clean Markdown table with columns: | Product Name | Key Highlights / Rewards | Annual Fee | Minimum Requirement |. "
@@ -742,6 +817,7 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
             prompt = f"""You are Lexi, the official Emirates NBD AI virtual banking assistant.
 Answer the user's question warmly, clearly, helpfully, and conversationally strictly based on the provided context chunks.
+Do NOT start with 'Hi, I'm Lexi' or repeat your name on every turn. The chat interface already identifies you as Lexi. Only state your name if greeted or asked who you are.
 Do not extrapolate, guess, or invent fees, interest rates, or eligibility rules.
 {category_instruction}
 If presenting product discovery or comparisons, format the options in a clean Markdown table (| Product Name | Key Highlights / Rewards | Annual Fee | Minimum Requirement |).
