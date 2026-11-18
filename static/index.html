@@ -3,15 +3,399 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Website RAG Chatbot</title>
+  <title>Emirates NBD Assistant | Official Website RAG Chatbot</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <style>
+    :root {
+      --bg-main: #0B0F19;
+      --surface-card: #111827;
+      --surface-user: #2563EB;
+      --border-subtle: #1F2937;
+      --accent-gold: #F59E0B;
+    }
+    body {
+      background-color: var(--bg-main);
+      color: #F9FAFB;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    .markdown-content p { margin-bottom: 0.75rem; }
+    .markdown-content p:last-child { margin-bottom: 0; }
+    .markdown-content ul { list-style-type: disc; margin-left: 1.25rem; margin-bottom: 0.75rem; }
+    .markdown-content ol { list-style-type: decimal; margin-left: 1.25rem; margin-bottom: 0.75rem; }
+    .markdown-content li { margin-bottom: 0.25rem; }
+    .markdown-content h1, .markdown-content h2, .markdown-content h3 { font-weight: 700; margin-top: 0.75rem; margin-bottom: 0.5rem; }
+    .markdown-content table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.875rem; }
+    .markdown-content th, .markdown-content td { border: 1px solid #374151; padding: 0.5rem 0.75rem; text-align: left; }
+    .markdown-content th { background-color: #1F2937; font-weight: 600; color: #E5E7EB; }
+    .markdown-content tr:nth-child(even) { background-color: #161F30; }
+    .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes typing {
+      0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center">
-  <div class="text-center p-8 bg-slate-800 rounded-xl shadow-2xl max-w-lg border border-slate-700">
-    <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">🤖</div>
-    <h1 class="text-2xl font-bold mb-2">Website RAG Chatbot</h1>
-    <p class="text-slate-400 mb-6">Backend and API initialized. Full chat UI connecting in Phase 5.</p>
-    <a href="/docs" class="inline-block bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-2 rounded-lg transition">Interactive API Docs (/docs)</a>
+<body class="h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- TOP HEADER -->
+  <header class="border-b border-gray-800 bg-slate-900/90 backdrop-blur px-6 py-3.5 flex items-center justify-between z-10">
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-blue-900/30">
+        🏦
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="text-base font-semibold text-slate-100">Emirates NBD Assistant</h1>
+          <span class="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full font-medium flex items-center">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span> Qdrant Hybrid RAG
+          </span>
+        </div>
+        <p class="text-xs text-slate-400">Grounded strictly on official website documentation with verified citations</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2">
+      <button id="products-drawer-btn" class="text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 px-3 py-1.5 rounded-lg flex items-center transition shadow-sm">
+        <span class="mr-1.5">📦</span> Covered Products (<span id="products-count">...</span>)
+      </button>
+      <a href="/docs" target="_blank" class="text-xs text-slate-400 hover:text-slate-200 border border-transparent hover:border-slate-700 px-2.5 py-1.5 rounded-lg transition">API Docs</a>
+    </div>
+  </header>
+
+  <!-- MAIN CHAT CONTAINER -->
+  <main class="flex-1 overflow-y-auto px-4 py-6 md:px-12 lg:px-32 max-w-5xl mx-auto w-full space-y-5" id="chat-messages">
+    <!-- WELCOME MESSAGE -->
+    <div class="flex items-start space-x-3.5">
+      <div class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-sm flex-shrink-0 shadow-inner">
+        🤖
+      </div>
+      <div class="flex-1 max-w-3xl bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
+        <div class="text-sm font-semibold text-blue-400 mb-1">Official Website Assistant</div>
+        <div class="text-sm text-slate-200 leading-relaxed space-y-2">
+          <p>Welcome! I am your AI assistant for Emirates NBD. I provide verified, grounded answers strictly extracted from official bank pages, with zero hallucinations and server-constructed citations.</p>
+          <p class="text-slate-400 text-xs">Try selecting one of the 5 golden question categories below to test the pipeline:</p>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2 pt-2 border-t border-slate-800/80">
+          <button class="suggestion-chip text-xs bg-slate-800 hover:bg-blue-900/40 text-slate-300 hover:text-blue-300 border border-slate-700/80 hover:border-blue-700/60 px-3 py-1.5 rounded-lg transition text-left">
+            💳 <strong>Fact:</strong> Annual fee of U By Emaar Signature Card?
+          </button>
+          <button class="suggestion-chip text-xs bg-slate-800 hover:bg-blue-900/40 text-slate-300 hover:text-blue-300 border border-slate-700/80 hover:border-blue-700/60 px-3 py-1.5 rounded-lg transition text-left">
+            🔍 <strong>Discovery:</strong> What credit cards and commercial cards are available?
+          </button>
+          <button class="suggestion-chip text-xs bg-slate-800 hover:bg-blue-900/40 text-slate-300 hover:text-blue-300 border border-slate-700/80 hover:border-blue-700/60 px-3 py-1.5 rounded-lg transition text-left">
+            ⚖️ <strong>Comparison:</strong> Compare Corporate Virtual Mobile Card and U By Emaar Signature Card
+          </button>
+          <button class="suggestion-chip text-xs bg-slate-800 hover:bg-blue-900/40 text-slate-300 hover:text-blue-300 border border-slate-700/80 hover:border-blue-700/60 px-3 py-1.5 rounded-lg transition text-left">
+            💬 <strong>Follow-up:</strong> What is its minimum salary requirement?
+          </button>
+          <button class="suggestion-chip text-xs bg-slate-800 hover:bg-amber-950/40 text-slate-300 hover:text-amber-300 border border-slate-700/80 hover:border-amber-700/60 px-3 py-1.5 rounded-lg transition text-left">
+            ⚠️ <strong>Fallback:</strong> Can I buy Tesla stock using your bank?
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- BOTTOM INPUT BAR -->
+  <footer class="border-t border-slate-800 bg-slate-900/90 backdrop-blur px-4 py-4 md:px-12 lg:px-32">
+    <div class="max-w-5xl mx-auto flex items-end space-x-3">
+      <div class="flex-1 bg-slate-800/90 border border-slate-700 focus-within:border-blue-500 rounded-xl px-4 py-2.5 transition shadow-inner">
+        <textarea id="chat-input" rows="1" placeholder="Ask about credit cards, savings accounts, fees, eligibility, or compare products..." class="w-full bg-transparent text-slate-100 placeholder-slate-400 text-sm focus:outline-none resize-none max-h-32"></textarea>
+      </div>
+      <button id="send-btn" class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-xl transition flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-900/20">
+        <span class="mr-1">Send</span>
+        <svg class="w-4 h-4 transform rotate-90" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="max-w-5xl mx-auto mt-2 text-center">
+      <p class="text-[11px] text-slate-400">Strict Grounded RAG &bull; Server-side Source Validation &bull; 0 Hallucinated Figures</p>
+    </div>
+  </footer>
+
+  <!-- COVERED PRODUCTS DRAWER / MODAL -->
+  <div id="products-drawer" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex justify-end transition-opacity">
+    <div class="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full flex flex-col shadow-2xl">
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">📦</span>
+          <div>
+            <h2 class="text-base font-semibold text-slate-100">Covered Products Catalog</h2>
+            <p class="text-xs text-slate-400">Live indexed in Qdrant Vector Cloud</p>
+          </div>
+        </div>
+        <button id="close-drawer-btn" class="text-slate-400 hover:text-white text-lg p-1 rounded hover:bg-slate-800 transition">&times;</button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-5 space-y-4" id="products-list">
+        <div class="text-xs text-slate-400 text-center py-8">Loading indexed products...</div>
+      </div>
+    </div>
   </div>
+
+  <script>
+    // State
+    const sessionId = crypto.randomUUID();
+    let isSubmitting = false;
+
+    const chatMessages = document.getElementById("chat-messages");
+    const chatInput = document.getElementById("chat-input");
+    const sendBtn = document.getElementById("send-btn");
+    const productsDrawer = document.getElementById("products-drawer");
+    const productsDrawerBtn = document.getElementById("products-drawer-btn");
+    const closeDrawerBtn = document.getElementById("close-drawer-btn");
+    const productsCount = document.getElementById("products-count");
+    const productsList = document.getElementById("products-list");
+
+    // Fetch and populate products
+    async function loadProducts() {
+      try {
+        const res = await fetch("/api/products");
+        if (!res.ok) return;
+        const products = await res.json();
+        productsCount.textContent = products.length;
+
+        if (products.length === 0) {
+          productsList.innerHTML = `<div class="text-xs text-slate-400 text-center py-4">No products cataloged yet. Run scripts.build_kb to index.</div>`;
+          return;
+        }
+
+        // Group by category
+        const byCategory = {};
+        for (const p of products) {
+          const cat = p.category || "General";
+          if (!byCategory[cat]) byCategory[cat] = [];
+          byCategory[cat].push(p);
+        }
+
+        let html = "";
+        for (const [category, items] of Object.entries(byCategory)) {
+          html += `<div class="mb-4">
+            <h3 class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">${category}</h3>
+            <div class="space-y-2">`;
+          for (const item of items) {
+            html += `
+              <div class="p-3 bg-slate-800/70 border border-slate-700/60 rounded-xl hover:border-blue-600/60 cursor-pointer transition product-card" data-name="${item.name}">
+                <div class="text-sm font-medium text-slate-100">${item.name}</div>
+                <div class="text-xs text-slate-400 flex items-center justify-between mt-1">
+                  <a href="${item.url}" target="_blank" class="text-blue-400 hover:underline flex items-center" onclick="event.stopPropagation()">
+                    Source Page <span class="ml-1 text-[10px]">↗</span>
+                  </a>
+                  <span class="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300">Click to ask</span>
+                </div>
+              </div>`;
+          }
+          html += `</div></div>`;
+        }
+        productsList.innerHTML = html;
+
+        // Add click listener to product cards
+        document.querySelectorAll(".product-card").forEach(el => {
+          el.addEventListener("click", () => {
+            const name = el.getAttribute("data-name");
+            chatInput.value = `Tell me about ${name} features and fees`;
+            productsDrawer.classList.add("hidden");
+            submitQuery();
+          });
+        });
+      } catch (e) {
+        console.error("Failed to load products", e);
+      }
+    }
+
+    // Drawer toggles
+    productsDrawerBtn.addEventListener("click", () => productsDrawer.classList.remove("hidden"));
+    closeDrawerBtn.addEventListener("click", () => productsDrawer.classList.add("hidden"));
+    productsDrawer.addEventListener("click", (e) => {
+      if (e.target === productsDrawer) productsDrawer.classList.add("hidden");
+    });
+
+    // Auto-resize input textarea
+    chatInput.addEventListener("input", () => {
+      chatInput.style.height = "auto";
+      chatInput.style.height = (chatInput.scrollHeight) + "px";
+    });
+
+    // Keyboard submit: Enter without Shift
+    chatInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        submitQuery();
+      }
+    });
+
+    sendBtn.addEventListener("click", submitQuery);
+
+    // Suggestion chips
+    document.addEventListener("click", (e) => {
+      const chip = e.target.closest(".suggestion-chip");
+      if (chip) {
+        const text = chip.textContent.replace(/^[💳🔍⚖️💬⚠️]\s*(?:Fact|Discovery|Comparison|Follow-up|Fallback):\s*/i, "").trim();
+        chatInput.value = text;
+        submitQuery();
+      }
+    });
+
+    async function submitQuery() {
+      const message = chatInput.value.trim();
+      if (!message || isSubmitting) return;
+
+      isSubmitting = true;
+      chatInput.value = "";
+      chatInput.style.height = "auto";
+      sendBtn.disabled = true;
+
+      // Append user message
+      appendUserMessage(message);
+
+      // Append typing indicator
+      const typingEl = appendTypingIndicator();
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, message: message }),
+        });
+
+        typingEl.remove();
+
+        if (!res.ok) {
+          appendErrorMessage("Server returned an error. Please verify backend status.");
+          return;
+        }
+
+        const data = await res.json();
+        appendBotResponse(data);
+      } catch (err) {
+        typingEl.remove();
+        appendErrorMessage("Network error connecting to /api/chat. Please make sure the FastAPI server is running.");
+      } finally {
+        isSubmitting = false;
+        sendBtn.disabled = false;
+        chatInput.focus();
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    }
+
+    function appendUserMessage(text) {
+      const el = document.createElement("div");
+      el.className = "flex justify-end";
+      el.innerHTML = `
+        <div class="max-w-2xl bg-blue-600 text-white px-4 py-3 rounded-2xl rounded-tr-sm shadow-md text-sm leading-relaxed">
+          ${escapeHTML(text)}
+        </div>
+      `;
+      chatMessages.appendChild(el);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function appendTypingIndicator() {
+      const el = document.createElement("div");
+      el.className = "flex items-start space-x-3.5";
+      el.innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-sm flex-shrink-0">
+          🤖
+        </div>
+        <div class="bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl shadow flex items-center space-x-1.5">
+          <div class="w-2 h-2 rounded-full bg-blue-500 typing-dot"></div>
+          <div class="w-2 h-2 rounded-full bg-blue-500 typing-dot"></div>
+          <div class="w-2 h-2 rounded-full bg-blue-500 typing-dot"></div>
+        </div>
+      `;
+      chatMessages.appendChild(el);
+      return el;
+    }
+
+    function appendBotResponse(data) {
+      const el = document.createElement("div");
+      el.className = "flex items-start space-x-3.5";
+
+      const isFallback = !data.answerable;
+      const cardBorder = isFallback ? "border-amber-500/50 bg-amber-950/10" : "border-slate-800 bg-slate-900/90";
+      const icon = isFallback ? "⚠️" : "🤖";
+      const badge = isFallback
+        ? `<span class="text-[11px] bg-amber-950/80 text-amber-400 border border-amber-800 px-2 py-0.5 rounded-full font-medium">⚠️ Out of Scope / Unverified</span>`
+        : `<span class="text-[11px] bg-blue-950/80 text-blue-400 border border-blue-800 px-2 py-0.5 rounded-full font-medium">Verified Grounded Answer</span>`;
+
+      // Render Markdown securely
+      const cleanHtml = DOMPurify.sanitize(marked.parse(data.answer));
+
+      // Build source citation pills
+      let sourcesHtml = "";
+      if (data.sources && data.sources.length > 0) {
+        sourcesHtml = `
+          <div class="mt-4 pt-3 border-t border-slate-800/80">
+            <div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-2 flex items-center">
+              <span>Verified Sources</span>
+              <span class="ml-1.5 text-[10px] text-slate-400">(${data.sources.length} page${data.sources.length > 1 ? 's' : ''})</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              ${data.sources.map(s => `
+                <a href="${escapeHTML(s.url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-blue-500 text-slate-200 hover:text-white px-2.5 py-1.5 rounded-lg transition group">
+                  <span class="mr-1.5 text-blue-400">🔗</span>
+                  <span class="truncate max-w-[200px] md:max-w-xs font-medium">${escapeHTML(s.title || s.url)}</span>
+                  <span class="ml-1.5 text-[10px] bg-slate-700 group-hover:bg-slate-600 text-slate-300 px-1.5 py-0.5 rounded">Crawled: ${escapeHTML(s.last_crawled || '2026-11-18')}</span>
+                  <span class="ml-1 text-slate-400 text-[10px]">↗</span>
+                </a>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      el.innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-sm flex-shrink-0 shadow-inner">
+          ${icon}
+        </div>
+        <div class="flex-1 max-w-3xl ${cardBorder} border p-5 rounded-2xl shadow-xl space-y-2">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">${escapeHTML(data.intent || "FACT")}</span>
+            ${badge}
+          </div>
+          <div class="markdown-content text-sm text-slate-200 leading-relaxed">
+            ${cleanHtml}
+          </div>
+          ${sourcesHtml}
+        </div>
+      `;
+
+      chatMessages.appendChild(el);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function appendErrorMessage(msg) {
+      const el = document.createElement("div");
+      el.className = "flex items-start space-x-3.5";
+      el.innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-red-950 border border-red-800 flex items-center justify-center text-sm flex-shrink-0">
+          ❌
+        </div>
+        <div class="max-w-2xl bg-red-950/40 border border-red-800/80 p-4 rounded-2xl text-xs text-red-200">
+          ${escapeHTML(msg)}
+        </div>
+      `;
+      chatMessages.appendChild(el);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function escapeHTML(str) {
+      if (!str) return "";
+      return str.replace(/[&<>'"]/g, tag => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+      }[tag] || tag));
+    }
+
+    // Initialize
+    loadProducts();
+  </script>
 </body>
 </html>
