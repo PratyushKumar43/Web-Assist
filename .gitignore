@@ -45,3 +45,6 @@ architecture.md
 docs/architecture_workflow.*
 docs/render_architecture_excalidraw.html
 docs/excalidraw_system_architecture.html
+
+.vercel
+.env*

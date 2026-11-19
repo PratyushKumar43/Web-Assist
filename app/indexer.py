@@ -45,12 +45,22 @@ class QdrantHybridIndexer:
             self.client = QdrantClient(path=settings.QDRANT_LOCAL_PATH)
 
         # Initialize dense and sparse encoders (FastEmbed)
-        logger.info("Initializing FastEmbed dense model (BAAI/bge-small-en-v1.5)...")
-        self.dense_model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+        # On Vercel serverless / Lambda, root file system is read-only, so cache to /tmp
+        import os
+        import tempfile
+        cache_dir = os.environ.get("FASTEMBED_CACHE_PATH", os.path.join(tempfile.gettempdir(), "fastembed_cache"))
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+        except OSError:
+            pass
+        os.environ["FASTEMBED_CACHE_PATH"] = cache_dir
+
+        logger.info("Initializing FastEmbed dense model (BAAI/bge-small-en-v1.5) in %s...", cache_dir)
+        self.dense_model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5", cache_dir=cache_dir)
         self.dense_dim = 384  # bge-small output dimension
 
-        logger.info("Initializing FastEmbed sparse model (Qdrant/bm25)...")
-        self.sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25")
+        logger.info("Initializing FastEmbed sparse model (Qdrant/bm25) in %s...", cache_dir)
+        self.sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25", cache_dir=cache_dir)
 
     def ensure_collection(self, recreate: bool = False) -> None:
         """Create or recreate the hybrid collection with dense and sparse configs."""

@@ -1,5 +1,15 @@
 """FastAPI application entrypoint for Website RAG Chatbot."""
 
+import os
+import tempfile
+
+# Force all caches to writable /tmp for serverless/Lambda environments
+_tmp = tempfile.gettempdir()
+os.environ.setdefault("HF_HOME", os.path.join(_tmp, "hf_home"))
+os.environ.setdefault("FASTEMBED_CACHE_PATH", os.path.join(_tmp, "fastembed"))
+os.environ.setdefault("XDG_CACHE_HOME", os.path.join(_tmp, "cache"))
+os.environ.setdefault("TRANSFORMERS_CACHE", os.path.join(_tmp, "transformers"))
+
 import json
 import logging
 from datetime import datetime, timezone

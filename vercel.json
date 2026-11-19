@@ -3,7 +3,15 @@
   "builds": [
     {
       "src": "app/main.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 60,
+        "includeFiles": [
+          "static/**",
+          "data/products_catalog.json",
+          "app/**"
+        ]
+      }
     }
   ],
   "routes": [
