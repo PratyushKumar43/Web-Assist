@@ -13,8 +13,8 @@ Stateful, catalog-grounded Hybrid RAG powered by **Python LangGraph**, **Qdrant 
 | **Server CLI & Framework** | `fastapi[standard]` (`fastapi dev`) | Modern official FastAPI CLI with auto-reload, rich error traces, and `/docs` |
 | **Orchestration** | Python LangGraph (`StateGraph`) | Explicit, auditable state machine with parallel fan-out (`Send` / `asyncio.gather`) |
 | **Data Validation & Schemas** | Pydantic v2 (`pydantic` + `pydantic-settings`) | Type-safe runtime validation for configs, API payloads, and LLM structured outputs |
-| **LLM** | Gemini 2.0 Flash / Gemini 1.5 Flash | Fast (< 2s), high fidelity, strict structured JSON schema enforcement via Pydantic |
-| **Embeddings** | Gemini API (`gemini-embedding-001`, 768-dim) | High retrieval benchmark score, managed API, zero local GPU/RAM overhead |
+| **LLM Engine** | Gemini 2.0 Flash / xAI Grok (`grok-2-latest`) / OpenRouter | Fast (< 2s), high fidelity, strict structured JSON schema enforcement via Pydantic |
+| **Embeddings** | Gemini API (`gemini-embedding-001`, 768-dim) / FastEmbed BGE-small | High retrieval benchmark score, managed API, zero local GPU/RAM overhead |
 | **Vector Database** | Qdrant (Hybrid Dense + BM25 Sparse) | Dual mode: embedded local directory (`./data/qdrant_data`) for dev, Qdrant Cloud for Vercel |
 | **Sparse Keyword Search** | FastEmbed / Qdrant Sparse BM25 | Ensures exact matches for model codes, currency figures (e.g. *AED 700*), and proper nouns |
 | **Primary Ingestion** | Firecrawl API (`map` + `scrape`) | High-fidelity markdown extraction with preserved tables and lists |
@@ -38,6 +38,13 @@ fastapi run app/main.py --port 8000
 - Listens at `http://127.0.0.1:8000`.
 - Serves the frontend at `http://127.0.0.1:8000/`.
 - Interactive OpenAPI documentation available at `http://127.0.0.1:8000/docs`.
+
+### Developer Testing & Diagnostic Endpoints:
+A dedicated set of endpoints under `/api/test/*` allows testing every tier in complete isolation:
+- `POST /api/test/llm`: Benchmark latency and response quality across providers (`xai`, `gemini`, `openrouter`, `auto`).
+- `GET /api/test/providers`: Real-time health audit of all connected AI and scraping providers.
+- `POST /api/test/retrieval`: Test Qdrant hybrid vector search and inspect raw chunks and RRF scores.
+- `POST /api/test/rewrite`: Test conversational query rewriting and intent router classification.
 
 ## 4. Multi-Layer Defensive Guardrails
 

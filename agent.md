@@ -97,6 +97,8 @@ For each phase:
 8. **The view model parses the deterministic markdown.** `app/ui_view.py` keys off the table headers produced by `deterministic_grounded_synthesis` (`Detail`, `Product Name`, `Feature / Detail`). Change those headings and the UI silently loses its spec grid, cards or comparison layout. `tests/test_ui_view.py` is the guard.
 9. **The UI has no canned answers.** The browser must never ship demo or fallback prose about products; an unreachable API renders an error bubble. Keeping client-side "demo mode" would fabricate figures the pipeline never verified.
 10. **Feedback is a record, not learning.** `POST /api/feedback` appends to `data/feedback.jsonl` for offline review. It does not cache answers, re-rank, or train anything, and no UI copy may claim otherwise.
+11. **Catalog listing intents bypass the LLM.** DISCOVERY and ABOUT return `deterministic_grounded_synthesis` directly. Letting a model paraphrase a listing has invented account names absent from `app/catalog.json`, which then render as cards with no link. If you re-enable generation for them, keep a catalog-name check.
+12. **Elliptical selection questions need the pair.** "Which one has the lower annual fee?" is a comparison of the products just discussed. `rewrite_query_node` binds it to the two most recent catalog names; without that it resolves as a fresh FACT query over the whole category.
 
 ---
 

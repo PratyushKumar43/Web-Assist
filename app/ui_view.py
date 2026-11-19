@@ -56,14 +56,18 @@ def _plain(text: str) -> str:
     """Drop inline markdown from a single cell or line."""
     text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)
     text = text.replace("**", "").replace("__", "").replace("`", "")
+    text = re.sub(r"^#{1,6}\s+", "", text)
     return text.strip()
 
 
-def _parse_blocks(answer: str) -> Tuple[List[str], List[List[str]], List[str]]:
-    """Split a markdown answer into (prose lines, first table rows, bullet lines)."""
+def _parse_blocks(
+    answer: str,
+) -> Tuple[List[str], List[List[str]], List[str], List[str]]:
+    """Split a markdown answer into (prose, table rows, bullets, prose after the table)."""
     prose: List[str] = []
     bullets: List[str] = []
     rows: List[List[str]] = []
+    trailing: List[str] = []
 
     for raw in answer.splitlines():
         line = raw.strip()
@@ -83,10 +87,12 @@ def _parse_blocks(answer: str) -> Tuple[List[str], List[List[str]], List[str]]:
         elif line.startswith("*") and line.endswith("*") and len(line) > 2:
             # Italic closing question; the quick-reply chips replace it.
             continue
+        elif rows:
+            trailing.append(_plain(line))
         else:
             prose.append(_plain(line))
 
-    return prose, rows, bullets
+    return prose, rows, bullets, trailing
 
 
 def _catalog_by_name() -> Dict[str, Dict[str, Any]]:
@@ -210,16 +216,23 @@ def build_ui_payload(response: ChatResponse) -> UIChatResponse:
         A `UIChatResponse` the browser can render without parsing markdown.
     """
     intent = (response.intent or "FACT").upper()
-    prose, rows, bullets = _parse_blocks(response.answer)
+    prose, rows, bullets, trailing = _parse_blocks(response.answer)
     catalog = _catalog_by_name()
 
     specs, cards, table_bullets = _table_blocks(rows, catalog)
     bullets.extend(table_bullets)
 
     if rows:
-        intro = prose[0] if prose else ""
+        # Lead-in plus any statement after the table (e.g. which option is cheaper), but not the
+        # closing offer - that is what the quick-reply chips are for.
+        parts = ([prose[0]] if prose else []) + [
+            line for line in trailing if not line.endswith("?")
+        ]
+        intro = "\n\n".join(part for part in parts if part)
     else:
-        intro = " ".join(prose)
+        # Paragraphs keep their own line breaks; the bubble renders them pre-line instead of
+        # running the lead-in and the closing offer together into one sentence.
+        intro = "\n\n".join(prose)
 
     if not intro:
         intro = "Here are the verified options available with Emirates NBD:"

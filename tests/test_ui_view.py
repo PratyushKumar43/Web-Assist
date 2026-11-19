@@ -119,6 +119,46 @@ def test_fallback_payload_carries_no_products():
     assert any("credit cards" in chip.lower() for chip in payload.next_chips)
 
 
+def test_prose_after_table_answers_the_question_but_drops_the_offer():
+    """A verdict after the table stays visible; the closing offer becomes chips instead."""
+    answer = "\n".join(
+        [
+            "Here is a side-by-side comparison between **Voyager World Credit Card** and "
+            "**Emirates Skywards Visa Infinite Credit Card**:",
+            "| Feature / Detail | Voyager World Credit Card | Emirates Skywards Visa Infinite Credit Card |",
+            "| :--- | :--- | :--- |",
+            "| **Annual Fee** | AED 750 | AED 1,575 |",
+            "**Voyager World Credit Card** has the lower annual fee (AED 750 versus AED 1,575).",
+            "Both options offer excellent features. Would you like me to guide you on how to apply?",
+        ]
+    )
+
+    payload = build_ui_payload(ChatResponse(answer=answer, intent="COMPARISON", sources=[SOURCE]))
+
+    assert "has the lower annual fee" in payload.intro
+    assert "Would you like" not in payload.intro
+    assert len(payload.cards) == 2
+
+
+def test_markdown_headings_never_reach_the_bubble():
+    """An LLM '### Summary' heading is stripped rather than shown literally."""
+    answer = "Here is the comparison:\n\n### Summary\n\nThe Voyager World Credit Card costs less."
+
+    payload = build_ui_payload(ChatResponse(answer=answer, intent="COMPARISON", sources=[SOURCE]))
+
+    assert "#" not in payload.intro
+    assert "Summary" in payload.intro
+
+
+def test_prose_paragraphs_keep_their_break():
+    """Lead-in and closing paragraphs stay separate lines for the bubble to render pre-line."""
+    answer = "Here are the details for **Standard Current Account**.\n\nWould you like help applying?"
+
+    payload = build_ui_payload(ChatResponse(answer=answer, intent="FACT", sources=[SOURCE]))
+
+    assert payload.intro == "Here are the details for Standard Current Account.\n\nWould you like help applying?"
+
+
 def test_prose_only_answer_keeps_bullets():
     """An answer without a table renders as intro plus bullets and drops the CTA."""
     answer = (

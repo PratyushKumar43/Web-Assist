@@ -78,7 +78,7 @@ Body copy and key labels meet WCAG 2.1 AA contrast in both themes. Colour is nev
 
 | Payload field | Rendered as |
 |---|---|
-| `intro` | Single escaped paragraph; no markdown on the client |
+| `intro` | Escaped text with paragraph breaks preserved (`white-space: pre-line`); no markdown on the client |
 | `specs[]` | Auto-fit grid of label/value tiles (FACT answers) |
 | `cards[]` | Horizontal snap carousel of product cards (DISCOVERY, COMPARISON) |
 | `bullets[]` | `ul.clean-list` with one escaped item per line |
@@ -168,6 +168,15 @@ POST /api/chat/ui  { "session_id": "...", "message": "..." }
 ```
 
 `cache_hit` is part of the contract and always `false` today: no verified-answer cache exists, and the badge only appears if a future cache reports a real hit.
+
+### 5.1 What the Projection May Contain
+
+`app/ui_view.py` is the only place that turns a verified markdown answer into these fields; the browser parses nothing.
+
+- **Table classification** is driven by the deterministic table headers the synthesizer emits: `Detail | Value` becomes the spec grid, `Product Name | ...` becomes product cards, `Feature / Detail | A | B` becomes comparison cards. Any other table becomes bullet rows.
+- **`intro` keeps its paragraph breaks** (`\n\n`, rendered with `white-space: pre-line`). For a table answer it carries the lead-in plus any non-question prose after the table - for example "Voyager World Credit Card has the lower annual fee" - while the closing offer is dropped because `next_chips` replaces it.
+- **Card URLs come from `app/catalog.json` only.** A product the catalog does not know renders with `url: ""`; no link is invented.
+- **DISCOVERY and ABOUT never reach an LLM.** Both are catalog listings, so `generate_answer_node` returns `deterministic_grounded_synthesis` directly. Paraphrasing them has produced product names absent from the catalog (and therefore card-less and link-less), which would break the promise that every listed product is verified.
 
 ## 6. Client Behavior & Security
 

@@ -37,8 +37,8 @@ class Settings(BaseSettings):
         description="xAI API key for Grok models (https://console.x.ai/).",
     )
     XAI_MODEL: str = Field(
-        default="grok-2-latest",
-        description="xAI Grok model name (e.g., grok-2-latest, grok-beta).",
+        default="grok-build-0.1",
+        description="xAI Grok model name used for chat generation (e.g. grok-build-0.1, grok-4.5).",
     )
     XAI_BASE_URL: str = Field(
         default="https://api.x.ai/v1",

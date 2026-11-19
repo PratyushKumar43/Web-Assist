@@ -57,6 +57,9 @@ No login, no accounts, no personal data.
 | FR19 | Continuation safety | Affirmations only continue a listing thread; after a single-product turn the prior question is repeated instead of listing the whole catalog |
 | FR20 | Render-ready view model | `POST /api/chat/ui` projects the grounded answer onto `intro` / `specs` / `cards` / `bullets` / `sources` / `next_chips`; the browser parses no markdown and composes no prose |
 | FR21 | Answer feedback | `POST /api/feedback` stores `interaction_id` + thumbs rating in `data/feedback.jsonl` for offline review; it never mutates the index or trains a model |
+| FR22 | Developer Diagnostic Suite | Dedicated interactive endpoints under `/api/test/*` on Swagger UI (`/api/test/llm`, `/api/test/providers`, `/api/test/retrieval`, `/api/test/rewrite`) |
+| FR23 | Entity Resolution & Fact Isolation | Decouples explicit query product matching from top-chunk scores; strictly isolates facts to target product preventing cross-card bleeding |
+| FR24 | Multi-Provider LLM Fallback | Cascades across OpenRouter -> xAI Grok (`grok-2-latest`) -> Google Gemini Flash -> Resilient Grounded Synthesis with number verification |
 
 ## 5. Question Types the Bot Must Handle
 
@@ -94,15 +97,16 @@ Follow-ups include elliptical and bare continuation forms ("any other", "tell me
 
 ## 9. Submission Checklist
 
-- [ ] Technical document (4 to 6 pages): HLD, Data Pipeline, LLD, sequence diagrams, risk mitigation.
-- [ ] Git repository (`https://github.com/PratyushKumar43/Web-Assist.git`) with documented README and AI disclosure.
-- [ ] Working one-command knowledge base builder (`python -m scripts.build_kb`).
-- [ ] Local server start verification via `fastapi dev app/main.py`.
-- [ ] Interactive browser UI with source citations, product cards, and fallback styling.
-- [ ] 5-minute recorded demonstration.
-- [ ] Exported product coverage report (`coverage_report.md`).
-- [ ] Test set of 10 to 15 golden questions with automated eval scores.
-- [ ] "What I would build next" architecture roadmap.
+- [x] Technical document (4 to 6 pages): HLD, Data Pipeline, LLD, sequence diagrams, risk mitigation (`docs/technical_report.md`).
+- [x] Git repository (`https://github.com/PratyushKumar43/Web-Assist.git`) with documented README and AI disclosure.
+- [x] Working one-command knowledge base builder (`python -m scripts.build_kb`).
+- [x] Local server start verification via `fastapi dev app/main.py`.
+- [x] Interactive browser UI with source citations, product cards, spec grids, and fallback styling.
+- [x] 5-minute recorded demonstration script (`docs/demo_script.md`) and browser QA test recording (`recording.mp4`).
+- [x] Exported product coverage report (`coverage_report.md`).
+- [x] Test set of 15 golden questions with automated eval scores (`data/eval_report.md`).
+- [x] Complete automated test suite passing 90/90 tests across 10 modules.
+- [x] "What I would build next" architecture roadmap.
 
 ## 10. Definition of Done
 

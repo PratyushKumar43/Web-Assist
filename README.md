@@ -1,10 +1,10 @@
 # Web-Assist: Production-Grade Grounded Website RAG Chatbot
 
-[![CI Test Suite](https://img.shields.io/badge/pytest-29%2F29%20passed-emerald)](tests/)
+[![CI Test Suite](https://img.shields.io/badge/pytest-90%2F90%20passed-emerald)](tests/)
 [![Benchmark Evaluation](https://img.shields.io/badge/golden%20eval-15%2F15%20(100%25)-blue)](data/eval_report.md)
 [![License](https://img.shields.io/badge/license-MIT-gray)](LICENSE)
 
-Web-Assist is a production-grade, highly defensible Retrieval-Augmented Generation (RAG) conversational chatbot engineered for enterprise websites. Built with **FastAPI**, **LangGraph**, **Qdrant Cloud Hybrid Search**, and **Google Gemini**, it provides grounded answers strictly derived from crawled website content with server-constructed citations and zero hallucinated financial figures.
+Web-Assist is a production-grade, highly defensible Retrieval-Augmented Generation (RAG) conversational chatbot engineered for enterprise websites. Built with **FastAPI**, **LangGraph**, **Qdrant Cloud Hybrid Search**, and **Google Gemini / xAI Grok**, it provides grounded answers strictly derived from crawled website content with server-constructed citations and zero hallucinated financial figures.
 
 ---
 
@@ -29,19 +29,25 @@ In accordance with engineering standards and transparency guidelines:
 3. **Qdrant Cloud Hybrid Vector Search**:
    - Dual vectors: FastEmbed dense (`BAAI/bge-small-en-v1.5`, 384 dims) and sparse (`Qdrant/bm25`).
    - Native Qdrant Reciprocal Rank Fusion (RRF) for balanced semantic and keyword recall.
-4. **Stateless Serverless Parity (Zero SQLite on Vercel)**:
+   - Synthetic catalog overview chunks (`app/catalog_chunks.py`) providing high-signal anchors for broad discovery inquiries.
+4. **Multi-Provider LLM & Resilient Grounded Generation**:
+   - Flexible cascading generation pipeline: OpenRouter -> xAI Grok (`grok-2-latest`) -> Google Gemini Flash -> Offline Deterministic Grounded Synthesis.
+   - Guarantees 100% uptime with zero hallucinated figures even during provider rate limits or complete network outages.
+5. **Stateless Serverless Parity (Zero SQLite on Vercel)**:
    - Chunk text, section breadcrumbs, and citation metadata reside directly in Qdrant vector payloads.
    - Catalog discovery runs from precompiled `data/products_catalog.json` for 100% serverless Vercel compatibility.
-5. **Five-Tier Guardrails**:
+6. **Five-Tier Guardrails**:
    - **Tier 1**: Pre-retrieval prompt injection interception.
    - **Tier 2**: Strict relevance gate ($\text{RRF Score} \ge 0.35$).
    - **Tier 3**: Structured JSON output via Pydantic `LLMAnswerOutput`.
-   - **Tier 4**: Numerical fact cross-check against retrieved context.
+   - **Tier 4**: Numerical fact cross-check against retrieved context and cross-card fact bleeding isolation.
    - **Tier 5**: Server-constructed source citations with crawl dates.
-6. **Zero-Build Modern Chat UI**:
+7. **Zero-Build Modern Chat UI**:
    - Single-file interface (`static/index.html`): inline CSS and vanilla JS, no CDN or build step.
-   - WhatsApp-style shell with intent badges, swipeable product cards, a FACT spec grid, collapsible citations, and amber fallback bubbles.
+   - WhatsApp-style shell with intent badges (`FACT`, `DISCOVERY`, `COMPARISON`, `OUT_OF_SCOPE`), swipeable product cards, spec grids, collapsible citations, and amber fallback bubbles.
    - The browser renders a typed view model (`POST /api/chat/ui`); it parses no markdown and holds no canned answers.
+8. **Interactive Developer Diagnostics**:
+   - Built-in diagnostic & testing suite under `/api/test/*` on Swagger UI (`/docs`) for isolated testing of LLM providers, health checks, retrieval RRF scores, and conversational query rewriting.
 
 ---
 
@@ -86,7 +92,11 @@ Key configuration variables in `.env`:
 SITE_URL=https://www.emiratesnbd.com/en
 CRAWL_RATE_LIMIT=1.0
 
-# LLM & Embeddings
+# LLM Providers (Cascading fallback: OpenRouter -> xAI -> Gemini -> Deterministic)
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=anthropic/claude-3.5-haiku
+XAI_API_KEY=your_xai_api_key
+XAI_MODEL=grok-2-latest
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-2.0-flash
 
@@ -117,7 +127,7 @@ fastapi dev app/main.py
 
 ## 🧪 Testing & Evaluation
 
-### Run Complete Pytest Suite (78 Tests)
+### Run Complete Pytest Suite (90 Tests)
 ```bash
 pytest tests/ -v
 ```
@@ -136,21 +146,24 @@ Full detailed results and Markdown summaries are written to `data/eval_report.md
 Web-Assist/
 ├── app/
 │   ├── config.py           # Pydantic BaseSettings & env validation
-│   ├── models.py           # Canonical Pydantic schemas (ChatRequest, ChatResponse, UIChatResponse)
+│   ├── models.py           # Canonical Pydantic schemas (ChatRequest, ChatResponse, UIChatResponse, Diagnostic models)
 │   ├── main.py             # FastAPI backend with /api/chat, /api/chat/ui, /api/feedback, /api/products, /api/health
+│   ├── diagnostics.py      # Developer testing endpoints (/api/test/llm, /api/test/providers, /api/test/retrieval, /api/test/rewrite)
 │   ├── ui_view.py          # Projects a grounded answer onto the UI view model
 │   ├── scraper.py          # Resilient crawler (Firecrawl, TinyFish failover, polite parser)
-│   ├── clean.py            # Currency normalizer (\uEAEF -> AED) and boilerplate cleaner
+│   ├── clean.py            # Currency normalizer (\uEAEF -> AED), table converter, and boilerplate cleaner
 │   ├── catalog.py          # Product classifier and catalog builder
-│   ├── chunk.py            # Heading-aware chunker with contextual breadcrumbs
-│   ├── indexer.py          # Qdrant hybrid indexer (Dense + BM25 + RRF)
+│   ├── catalog_chunks.py   # Synthetic catalog overview and directory chunk generator
+│   ├── chunk.py            # Heading-aware chunker with contextual breadcrumbs & status metadata
+│   ├── indexer.py          # Qdrant hybrid indexer (Dense + BM25 + RRF + payload filtering)
+│   ├── relations.py        # Hierarchical entity graph and KFS policy resolver
 │   ├── catalog.json        # Precompiled product catalog bundled for Vercel
 │   └── graph/              # LangGraph Conversational Workflow
 │       ├── state.py        # ChatState TypedDict
 │       ├── nodes.py        # Rewriter, router, retriever, grader, generator, citation nodes
 │       └── workflow.py     # StateGraph compilation & execution
 ├── data/
-│   ├── products_catalog.json # Static products catalog
+│   ├── products_catalog.json # Static products catalog (21 verified products)
 │   ├── coverage_report.md    # Product coverage audit report
 │   └── eval_report.md        # 15-question benchmark report
 ├── docs/
@@ -166,7 +179,9 @@ Web-Assist/
 │   ├── test_scraper.py       # Phase 1 crawler & manifest unit tests
 │   ├── test_pipeline.py      # Phase 2 & 3 clean, catalog, chunking tests
 │   ├── test_graph.py         # Phase 4 LangGraph workflow tests
-│   ├── test_conversational_flows.py # Routing, memory, noise and anchor regressions
+│   ├── test_conversational_flows.py # Routing, memory, noise, entity pinning, and comparison follow-up regressions
+│   ├── test_diagnostics.py   # Developer testing endpoints unit tests
+│   ├── test_relations.py     # Hierarchical ontology and KFS policy tests
 │   ├── test_ui_view.py       # UI view model projection tests
 │   ├── test_api.py           # Phase 5 FastAPI integration tests
 │   └── eval_set.json         # 15 golden questions dataset

@@ -78,6 +78,175 @@ def detect_active_category(messages: List[Dict[str, str]]) -> Optional[str]:
     return None
 
 
+def attribute_from_query(query: str) -> str:
+    """Name the detail a selection follow-up is asking about ("which one has the lower ...")."""
+    q = query.lower()
+    if re.search(r"\b(?:annual|joining|monthly|late|fall[\s-]?below)\s+fee\b", q) or "fee" in q:
+        return "annual fee"
+    if re.search(r"\b(?:minimum\s+)?(?:monthly\s+)?balance\b", q):
+        return "minimum balance"
+    if re.search(r"\b(?:minimum\s+)?salary\b", q):
+        return "minimum salary"
+    if re.search(r"\b(?:profit|interest)\s+rate\b|\brate\b", q):
+        return "profit rate"
+    if re.search(r"\b(?:benefits?|rewards?|cashback|perks?)\b", q):
+        return "key benefits"
+    return "features and fees"
+
+
+# Pronouns that bind a follow-up to the product (or the bank) already under discussion
+PRONOUN_RE = re.compile(
+    r"\b(this account|that account|the account|this card|that card|the card|both of them|both|it|its|this|that|these|those|them)\b",
+    re.IGNORECASE,
+)
+
+# Broad "what do you offer" questions resolve a pronoun to the bank, not to one product
+BROAD_INQUIRY_PATTERNS = [
+    r"\bwhat\s+(?:products|cards|accounts|services)\b",
+    r"\bwhat\s+.*(?:providing|provide|offer|have)\b",
+    r"\bwhich\s+(?:products|cards|accounts)\b",
+]
+
+
+def resolve_pronouns(query: str, messages: List[Dict[str, str]]) -> Optional[str]:
+    """Replace a pronoun with the most recent catalog product, or with the bank for broad asks.
+
+    Returns None when the query has no pronoun or no subject can be recovered, so callers can
+    keep the original text.
+    """
+    if not PRONOUN_RE.search(query):
+        return None
+
+    if any(re.search(p, query, re.IGNORECASE) for p in BROAD_INQUIRY_PATTERNS):
+        return PRONOUN_RE.sub("Emirates NBD", query, count=1)
+
+    catalog = load_catalog_data()
+    known_products = sorted([p["name"] for p in catalog], key=len, reverse=True)
+
+    last_subject: Optional[str] = None
+    for msg in reversed(messages):
+        content_norm = re.sub(r"s\b", "", (msg.get("content") or "").lower())
+        for prod in known_products:
+            if matches_product_name(prod, content_norm):
+                last_subject = prod
+                break
+        if last_subject:
+            break
+
+    if not last_subject:
+        prev_user_msg = next(
+            (m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), ""
+        )
+        if prev_user_msg:
+            last_subject = prev_user_msg.strip(" ?.")
+
+    if not last_subject:
+        return None
+
+    logger.info("Resolved pronoun in '%s' -> '%s'", query, last_subject)
+    return PRONOUN_RE.sub(last_subject, query, count=1)
+
+
+_PRODUCT_PHRASE_STOPWORDS = {
+    "tell", "me", "about", "the", "a", "an", "show", "what", "whats", "is",
+    "are", "of", "for", "do", "does", "you", "your", "our", "my", "this",
+    "that", "these", "those", "i", "can", "get", "open", "apply", "please",
+    "give", "list", "all", "any", "which", "new", "want", "need", "info",
+    "information", "details", "on", "to",
+}
+
+# Nouns that end a product name, and words that describe a category rather than a product.
+_PRODUCT_NOUN_PATTERN = (
+    r"credit\s+cards?|debit\s+cards?|prepaid\s+cards?|commercial\s+cards?|"
+    r"accounts?|certificates?|loans?"
+)
+_CATEGORY_TOKENS = {
+    "credit", "debit", "prepaid", "commercial", "card", "cards", "account",
+    "accounts", "certificate", "certificates", "loan", "loans", "savings",
+    "current", "business", "banking", "gold", "standard", "joint", "salary",
+}
+
+# Attribute wording that can sit in front of a product name without being part of it
+_PRODUCT_PHRASE_LEAD_WORDS = {
+    "annual", "fee", "fees", "joining", "minimum", "salary", "balance", "rate",
+    "interest", "profit", "privileges", "privilege", "benefits", "benefit",
+    "features", "feature", "details", "detail", "cost", "costs", "charge",
+    "charges", "requirements", "requirement", "eligibility", "documents",
+    "document", "paperwork", "need", "needed", "offer", "offers", "provide",
+    "provides", "available", "price", "pricing", "information", "info", "limit",
+    "limits", "dining",
+}
+_PRODUCT_PHRASE_TRAILING = {"of", "for", "with", "and", "or", "to", "in", "on", "at", "from", "the", "a", "an"}
+
+
+def explicit_product_phrase(query: str) -> Optional[str]:
+    """Return the product name a query types out, e.g. "LuLu 247 Platinum Credit Card".
+
+    Only phrases that look like a proper name (a capitalised word or a digit) qualify, so
+    "a credit card for travel" stays a category question. None means no named product.
+    """
+    pattern = re.compile(
+        rf"\b((?:[a-z0-9][\w'’&.\-]*\s+){{0,6}}?)({_PRODUCT_NOUN_PATTERN})\b",
+        re.IGNORECASE,
+    )
+    best = ""
+    for match in pattern.finditer(query):
+        lead = [w for w in re.split(r"\s+", match.group(1).strip()) if w]
+        while lead and (
+            lead[0].lower() in _PRODUCT_PHRASE_STOPWORDS
+            or lead[0].lower() in _PRODUCT_PHRASE_LEAD_WORDS
+        ):
+            lead.pop(0)
+        while lead and lead[-1].lower() in _PRODUCT_PHRASE_TRAILING:
+            lead.pop()
+        # Start at the proper noun: "annual fee of the Duo" -> "Duo"
+        first_named = next((i for i, w in enumerate(lead) if w[:1].isupper()), None)
+        if first_named:
+            lead = lead[first_named:]
+        if not lead:
+            continue
+        looks_named = any(w[:1].isupper() for w in lead) or any(ch.isdigit() for w in lead for ch in w)
+        if not looks_named:
+            continue
+        phrase = re.sub(r"\s+", " ", " ".join(lead + [match.group(2)]))
+        if len(phrase) > len(best):
+            best = phrase
+    return best or None
+
+
+def phrase_in_catalog(phrase: str, catalog_names: List[str]) -> bool:
+    """True when the distinctive words of `phrase` all appear in one catalog product name."""
+    tokens = [
+        token
+        for token in re.findall(r"[a-z0-9]+", phrase.lower())
+        if len(token) > 2 and token not in _CATEGORY_TOKENS
+    ]
+    if not tokens:
+        return True
+    for name in catalog_names:
+        name_tokens = set(re.findall(r"[a-z0-9]+", name.lower()))
+        if all(token in name_tokens for token in tokens):
+            return True
+    return False
+
+
+_CROSS_SELL_SECTION_RE = re.compile(
+    r"(?:credit|debit|prepaid|commercial)\s+cards?$", re.IGNORECASE
+)
+
+
+def is_cross_sell_chunk(chunk: Dict[str, Any]) -> bool:
+    """A chunk titled "Product: X > Y Credit Card" is Y's promo card embedded in X's page."""
+    text = (chunk.get("text") or "").lstrip()
+    if not text:
+        return False
+    match = re.match(r"^Product:\s*(.+?)\s*>\s*(.+?)\s*$", text.splitlines()[0], re.IGNORECASE)
+    if not match:
+        return False
+    host, section = match.group(1).strip(), match.group(2).strip()
+    return bool(_CROSS_SELL_SECTION_RE.search(section)) and section.lower() != host.lower()
+
+
 def matches_product_name(prod: str, text_norm: str) -> bool:
     """Check if a catalog product name or its distinct core brand matches text."""
     prod_norm = re.sub(r"s\b", "", prod.lower())
@@ -175,10 +344,11 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
             )
             if not listing_intent:
                 if prior_user_message:
+                    resolved = resolve_pronouns(prior_user_message, messages) or prior_user_message
                     logger.info(
-                        "Affirmation bound to previous question: '%s' -> '%s'", raw_query, prior_user_message
+                        "Affirmation bound to previous question: '%s' -> '%s'", raw_query, resolved
                     )
-                    return {"standalone_query": prior_user_message}
+                    return {"standalone_query": resolved}
                 return {"standalone_query": clean_query}
 
         active_category = detect_active_category(messages)
@@ -237,51 +407,36 @@ def rewrite_query_node(state: ChatState) -> Dict[str, Any]:
             logger.info("Resolved dual subject follow-up: '%s' -> '%s'", raw_query, resolved)
             return {"standalone_query": resolved}
 
-    # 3. Standard Anaphoric Pronoun Resolution
-    pronoun_pattern = re.compile(
-        r"\b(this account|that account|the account|this card|that card|the card|both of them|both|it|its|this|that|these|those|them)\b",
-        re.IGNORECASE,
+    # 2.6 Selection Follow-Up (e.g. "which one has the lower annual fee?" after a comparison)
+    # Without this, the question loses its pair and becomes a generic catalog FACT listing.
+    selection_pattern = re.compile(
+        r"(?i)\bwhich\s+(?:one|of\s+(?:them|these|those|the\s+two))\b|"
+        r"\b(?:which|what)\s+is\s+(?:the\s+)?(?:cheaper|less\s+expensive|better)\b"
     )
-
-    if not pronoun_pattern.search(clean_query):
-        return {"standalone_query": clean_query}
-
-    catalog = load_catalog_data()
-    known_products = sorted([p["name"] for p in catalog], key=len, reverse=True)
-
-    # If the user is asking a broad question about what the bank provides/offers
-    broad_inquiry_patterns = [
-        r"\bwhat\s+(?:products|cards|accounts|services)\b",
-        r"\bwhat\s+.*(?:providing|provide|offer|have)\b",
-        r"\bwhich\s+(?:products|cards|accounts)\b",
-    ]
-    if any(re.search(p, clean_query, re.IGNORECASE) for p in broad_inquiry_patterns):
-        resolved = pronoun_pattern.sub("Emirates NBD", clean_query, count=1)
-        logger.info("Broad query rewrote pronoun to bank: '%s' -> '%s'", raw_query, resolved)
-        return {"standalone_query": resolved}
-
-    last_subject: Optional[str] = None
-    for msg in reversed(messages):
-        content = msg.get("content", "")
-        content_norm = re.sub(r"s\b", "", content.lower())
-        for prod in known_products:
-            if matches_product_name(prod, content_norm):
-                last_subject = prod
+    if selection_pattern.search(clean_query) and messages:
+        catalog = load_catalog_data()
+        known_products = sorted([p["name"] for p in catalog], key=len, reverse=True)
+        recent_products: List[str] = []
+        for msg in reversed(messages):
+            content_norm = re.sub(r"s\b", "", (msg.get("content") or "").lower())
+            for prod in known_products:
+                if matches_product_name(prod, content_norm) and prod not in recent_products:
+                    recent_products.append(prod)
+            if len(recent_products) >= 2:
                 break
-        if last_subject:
-            break
 
-    if not last_subject and len(messages) >= 1:
-        prev_user_msg = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
-        if prev_user_msg:
-            last_subject = prev_user_msg.strip(" ?.")
+        if recent_products:
+            attribute = attribute_from_query(clean_query)
+            if len(recent_products) >= 2:
+                resolved = f"Compare the {attribute} of {recent_products[0]} and {recent_products[1]}"
+            else:
+                resolved = f"What is the {attribute} of {recent_products[0]}?"
+            logger.info("Selection follow-up bound to recent context: '%s' -> '%s'", raw_query, resolved)
+            return {"standalone_query": resolved}
 
-    if last_subject:
-        resolved = pronoun_pattern.sub(last_subject, clean_query, count=1)
-        logger.info("Rewrote query: '%s' -> '%s'", raw_query, resolved)
-        return {"standalone_query": resolved}
-
-    return {"standalone_query": clean_query}
+    # 3. Standard Anaphoric Pronoun Resolution
+    resolved = resolve_pronouns(clean_query, messages)
+    return {"standalone_query": resolved or clean_query}
 
 
 # -----------------------------------------------------------------------------
@@ -465,7 +620,18 @@ def router_node(state: ChatState) -> Dict[str, Any]:
             "sub_queries": [query],
         }
 
-    # 6. Default to Single Product Fact Intent
+    # 6. A named product the catalog does not carry must never borrow another product's page
+    unknown_product = explicit_product_phrase(query)
+    if unknown_product and not phrase_in_catalog(unknown_product, catalog_names):
+        logger.info("Query names a product outside the verified catalog: %s", unknown_product)
+        return {
+            "intent": "OUT_OF_SCOPE",
+            "sub_queries": [],
+            "fallback_reason": "unverified_product",
+            "unknown_product": unknown_product,
+        }
+
+    # 7. Default to Single Product Fact Intent
     return {
         "intent": "FACT",
         "sub_queries": [query],
@@ -695,6 +861,9 @@ async def retrieve_context_node(state: ChatState) -> Dict[str, Any]:
             if rel_chunk and not any(c.get("chunk_id") == rel_chunk.get("chunk_id") for c in retrieved_chunks):
                 retrieved_chunks.insert(0, rel_chunk)
 
+    # Promo cards for other products ("Product: X > Y Credit Card") ride along inside X's page.
+    retrieved_chunks = [c for c in retrieved_chunks if not is_cross_sell_chunk(c)]
+
     # Compute max relevance score
     max_score = 0.0
     if retrieved_chunks:
@@ -811,6 +980,63 @@ def verify_number_groundedness(answer: str, context_text: str) -> bool:
     return True
 
 
+# Site section labels that survive cleaning but carry no product fact
+NAV_NOISE_LINES = {
+    "update your info",
+    "everyday banking",
+    "rewards & benefits",
+    "rewards and benefits",
+    "quick links",
+    "ways to bank",
+    "help & support",
+    "help and support",
+    "follow us",
+    "download the app",
+    "back to top",
+    "related links",
+    "you may also like",
+    "important links",
+    "popular links",
+    "personal banking",
+    "business banking",
+    "about us",
+    "contact us",
+    "search results",
+}
+
+
+_SCRAPE_FRAGMENT_RES = (
+    # A privilege grid glues the cuisine label to the value: "CUISINEFine Dining"
+    re.compile(r"^[A-Z]{4,}[A-Z][a-z]"),
+    # Bare venue titles carry no fact on their own: "Amalfi - Palazzo Versace Dubai"
+    re.compile(r"^[A-Z][\w'’&.\- ]+\s+[-–]\s+[A-Z][\w'’&.\- ]+$"),
+)
+
+
+def strip_scrape_fragments(text: str) -> str:
+    """Remove privilege-grid leftovers from chunk text before a generator sees it.
+
+    The deterministic extractor already skips these lines; doing the same here keeps them
+    out of an LLM prompt, so neither path can quote "CUISINEFine Dining" as a benefit.
+    """
+    kept: List[str] = []
+    for line in text.splitlines():
+        line_clean = line.strip()
+        if not line_clean:
+            kept.append(line)
+            continue
+        if "![" in line_clean or "](" in line_clean:
+            continue
+        if line_clean.lower().strip(" .:") in NAV_NOISE_LINES:
+            continue
+        if not re.search(r"\d|%", line_clean) and any(
+            pattern.match(line_clean) for pattern in _SCRAPE_FRAGMENT_RES
+        ):
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
 def deterministic_grounded_synthesis(
     query: str,
     intent: str,
@@ -917,6 +1143,19 @@ def deterministic_grounded_synthesis(
         lines.append(f"| **Eligibility / Requirement** | {fa['req']} | {fb['req']} |")
         lines.append(f"| **Primary Benefit** | {fa['summary']} | {fb['summary']} |")
 
+        # Answer the "which one is cheaper" case outright, using only the catalog figures above.
+        def fee_amount(text: str) -> Optional[float]:
+            match = re.search(r"([\d,]+(?:\.\d+)?)", text or "")
+            return float(match.group(1).replace(",", "")) if match else None
+
+        fee_a, fee_b = fee_amount(fa["fee"]), fee_amount(fb["fee"])
+        if fee_a is not None and fee_b is not None and fee_a != fee_b:
+            cheaper = prod_names[0] if fee_a < fee_b else prod_names[1]
+            lines.append(
+                f"\n**{cheaper}** has the lower annual fee "
+                f"({fa['fee'] if fee_a < fee_b else fb['fee']} versus {fb['fee'] if fee_a < fee_b else fa['fee']})."
+            )
+
         lines.append(f"\nBoth options offer excellent features tailored to different customer needs. Would you like me to guide you on how to apply for either option?")
         return "\n".join(lines), list(dict.fromkeys(used_chunk_ids))
 
@@ -956,6 +1195,9 @@ def deterministic_grounded_synthesis(
     # 1. Multi-chunk extraction & breadcrumb filtering
     clean_facts = []
     seen_facts = set()
+    wants_documents = bool(
+        re.search(r"\b(?:documents?|paperwork|application|apply|required)\b", query_lower)
+    )
 
     # Whole-catalog directory chunks describe the catalog, not a product's facts.
     fact_chunks = [c for c in chunks if c.get("category") != "general_catalog"]
@@ -972,11 +1214,24 @@ def deterministic_grounded_synthesis(
     for c in fact_chunks:
         text = c.get("text", "")
         accepted_lines = 0
+        in_cross_sell = False
         for line in text.splitlines():
             line_clean = line.strip(" -*#_")
             line_lower = line_clean.lower()
             # Ignore empty lines, breadcrumbs, markdown images, raw URLs
             if not line_clean or len(line_clean) < 15:
+                continue
+            # "Other credit cards / Looking for something different" starts a cross-sell block
+            if re.match(
+                r"^(?:other\s+(?:credit|debit)\s+cards?|looking\s+for\s+something\s+different|"
+                r"you\s+may\s+also\s+like|related\s+products|similar\s+products|"
+                r"recommended\s+for\s+you|other\s+products)$",
+                line_clean,
+                re.IGNORECASE,
+            ):
+                in_cross_sell = True
+                continue
+            if in_cross_sell:
                 continue
             # Skip chunk prefix headers (e.g. [Product: X | Category: Y | Status: Z])
             if re.match(r"^\[Product:\s*.*?\]", line_clean, re.IGNORECASE):
@@ -990,11 +1245,38 @@ def deterministic_grounded_synthesis(
                 re.IGNORECASE,
             ):
                 continue
+            # Synthetic catalog-record lines emitted for retrieval, not prose facts
+            if re.match(
+                r"^(?:product|category|summary|annual fee|joining fee|requirements)\s*:",
+                line_clean,
+                re.IGNORECASE,
+            ):
+                continue
             # Skip image tags, truncated images, or raw image markdown
             if "![" in line_clean or line_clean.startswith("[!") or "](" in line_clean or line_clean.startswith("http") or line_clean.startswith("[View"):
                 continue
             # Skip UI action button noise
             if re.search(r"\b(?:apply now|view more|read more|learn more)\b", line_lower):
+                continue
+            # Skip bare site-section labels ("Update your info", "Everyday banking")
+            if line_lower.strip(" .:") in NAV_NOISE_LINES:
+                continue
+            # Scraped privilege grids leave fragments ("CUISINEFine Dining") and bare venue titles
+            if re.match(r"^[A-Z]{4,}[A-Z][a-z]", line_clean):
+                continue
+            if re.match(
+                r"^[A-Z][\w'’&.\- ]+\s+[-–]\s+[A-Z][\w'’&.\- ]+$", line_clean
+            ) and not re.search(r"\d|%", line_clean):
+                continue
+            # Application paperwork answers "what documents do I need?", not "what are the perks"
+            if not wants_documents and re.match(
+                r"^(?:duly\s+filled|original\s+emirates\s+id|emirates\s+id\s+and\s+copy|"
+                r"original\s+passport|latest\s+salary\s+certificate|trade\s+license|"
+                r"security\s+cheque|latest\s+3[- ]month|original\s+credit\s+card\s+of|"
+                r"copy\s+of|pay\s+slip|moa\b)",
+                line_clean,
+                re.IGNORECASE,
+            ):
                 continue
             if "terms and conditions" in line_lower and len(line_clean) < 30:
                 continue
@@ -1033,6 +1315,7 @@ def deterministic_grounded_synthesis(
     if matching_catalog_prod:
         cat_p = matching_catalog_prod
         fee = cat_p.get("annual_fee") or "None / Free"
+        joining_fee = cat_p.get("joining_fee")
         req = cat_p.get("min_requirement") or "N/A"
         category = cat_p.get("category") or "Personal Banking"
         summary = cat_p.get("summary", "")
@@ -1042,9 +1325,12 @@ def deterministic_grounded_synthesis(
             "| Detail | Official Specifications |",
             "| :--- | :--- |",
             f"| **Category** | {category} |",
-            f"| **Annual / Joining Fee** | {fee} |",
-            f"| **Eligibility & Minimum Requirement** | {req} |",
+            f"| **Annual Fee** | {fee} |",
         ]
+        # Joining fee is a separate catalog field; never fold it into the annual fee.
+        if joining_fee and joining_fee != fee:
+            table_lines.append(f"| **Joining Fee** | {joining_fee} |")
+        table_lines.append(f"| **Eligibility & Minimum Requirement** | {req} |")
 
         if "gold" in product_name.lower():
             table_lines.append("| **Redemption & Liquidity** | Buy or redeem at any Emirates NBD branch prior to maturity in cash or gold bars |")
@@ -1092,15 +1378,105 @@ def deterministic_grounded_synthesis(
     return answer, used_chunk_ids
 
 
+async def _grounded_chat_completion(
+    *,
+    url: str,
+    headers: Dict[str, str],
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    context_str: str,
+    chunks: List[Dict[str, Any]],
+    provider_label: str,
+    timeout: float = 45.0,
+) -> Optional[Dict[str, Any]]:
+    """Call one OpenAI-compatible chat endpoint; return answer state only if it is grounded.
+
+    Every provider goes through the same number guardrail, so a provider cannot ship a fee
+    that is absent from the retrieved context. None means "try the next provider".
+    """
+    import httpx
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.2,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(url, headers=headers, json=payload)
+        if resp.status_code != 200:
+            logger.warning(
+                "%s returned HTTP %s. Continuing to fallback generators.",
+                provider_label,
+                resp.status_code,
+            )
+            return None
+        choices = resp.json().get("choices", [])
+        if not choices:
+            return None
+        ans_text = choices[0].get("message", {}).get("content", "").strip()
+        # Clean any internal reasoning tokens if the model enabled thinking
+        ans_clean = re.sub(r"<think>.*?</think>", "", ans_text, flags=re.DOTALL).strip()
+        if not ans_clean:
+            return None
+        if not verify_number_groundedness(ans_clean, context_str):
+            logger.warning(
+                "%s generated ungrounded numbers. Continuing to fallback generators.",
+                provider_label,
+            )
+            return None
+        matched_ids = [
+            c.get("chunk_id")
+            for c in chunks
+            if (c.get("product_name") and any(term in ans_clean.lower() for term in c.get("product_name").lower().split() if len(term) > 3))
+            or (c.get("is_relational") and any(term in ans_clean.lower() for term in ["key facts", "kfs", "policy", "classic", "fall-below", "fall below", "minimum balance", "3,000", "5,000"]))
+        ]
+        used_ids = matched_ids if matched_ids else [c.get("chunk_id") for c in chunks[:3] if c.get("chunk_id")]
+        return {
+            "answer": ans_clean,
+            "used_chunk_ids": used_ids,
+            "answerable": True,
+            "guardrail_passed": True,
+        }
+    except Exception as e:
+        logger.warning(
+            "%s API generation failed (%s). Continuing to fallback generators.", provider_label, e
+        )
+        return None
+
+
 async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
-    """Generate grounded answer using OpenRouter, Gemini Flash, or deterministic fallback."""
+    """Generate grounded answer using xAI Grok, then OpenRouter, Gemini Flash, or deterministic fallback."""
     query = state.get("standalone_query", state.get("raw_query", ""))
     chunks = state.get("retrieved_chunks", [])
     intent = state.get("intent", "FACT")
     target_category = state.get("target_category")
 
+    # DISCOVERY and ABOUT are catalog listings, so build them from the verified catalog only.
+    # Paraphrasing them through an LLM has produced product names that are not in
+    # `app/catalog.json` (and therefore have no card or URL), which breaks the "every listed
+    # product is verified" promise.
+    if intent in ("DISCOVERY", "ABOUT"):
+        answer, used_chunk_ids = deterministic_grounded_synthesis(
+            query,
+            intent,
+            chunks,
+            target_category=target_category,
+            products_in_context=state.get("products_in_context", []),
+        )
+        return {
+            "answer": answer,
+            "used_chunk_ids": used_chunk_ids,
+            "answerable": True,
+            "guardrail_passed": True,
+        }
+
     context_str = "\n\n---\n\n".join(
-        f"Chunk ID: {c.get('chunk_id')}\nProduct: {c.get('product_name')}\nURL: {c.get('url')}\nContent:\n{c.get('text')}"
+        f"Chunk ID: {c.get('chunk_id')}\nProduct: {c.get('product_name')}\nURL: {c.get('url')}\nContent:\n{strip_scrape_fragments(c.get('text', ''))}"
         for c in chunks
     )
 
@@ -1112,33 +1488,23 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
             f"Do NOT include or mix products from any other category (e.g. do not discuss Current Accounts or Savings Accounts if asked about Credit Cards or Debit Cards)."
         )
 
-    # 1. Attempt generation via OpenRouter API (supports openrouter/free)
-    if settings.OPENROUTER_API_KEY and not settings.OPENROUTER_API_KEY.startswith("<"):
-        try:
-            import httpx
-
-            headers = {
-                "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "http://localhost:8000",
-                "X-Title": "Web-Assist",
-            }
-            system_prompt = (
-                "You are Lexi, the official Emirates NBD AI virtual banking assistant. "
-                "Your tone is warm, friendly, natural, empathetic, and professional—like an experienced Emirates NBD relationship manager chatting with a customer. "
-                "IMPORTANT: Do NOT start your message with 'Hi, I'm Lexi' or repeat your name on every turn. The chat interface already clearly displays your name. Only introduce yourself by name if the user explicitly greets you or asks who you are. "
-                "Never use robotic boilerplate like 'According to official Emirates NBD documentation for X:'. On standard queries, dive straight into answering the user's question with warm, professional phrasing (e.g. 'Here is what you need to know about...', 'Here are the details for...', 'Here is an overview of...'). "
-                f"{category_instruction} "
-                "Formatting Guidelines: "
-                "- For general bank inquiries ('about emirates nbd', 'overview', 'about the bank'), provide a warm introduction to Emirates NBD as a leading UAE bank and briefly outline the primary verified banking categories available (Credit Cards, Debit Cards, Accounts, Wealth, Loans). "
-                "- For product discovery (when listing cards, accounts, or services), present the options in a clean Markdown table with columns: | Product Name | Key Highlights / Rewards | Annual Fee | Minimum Requirement |. "
-                "- For product comparisons, present a clear side-by-side Markdown comparison table (| Feature / Detail | Product A | Product B |) followed by a helpful conversational summary. "
-                "- For single-product inquiries, answer conversationally with clean bullet points or structured highlights for fees, balance rules, and requirements. "
-                "When answering inquiries about account minimum balance, maintenance fees, or requirements for promotional/specialized accounts (such as the Millionaire Account), explain both its specific features (e.g. prize draws) and its governing baseline terms from Emirates NBD's Key Facts Statement (KFS) / Personal Banking Classic Package (e.g. minimum monthly average balance of AED 3,000, or AED 5,000 for standard digital savings, and AED 26.25 monthly fall-below fee with salary transfer exemptions). "
-                "Strict Grounding: Never extrapolate, guess, or invent fees, interest rates, or eligibility rules. All numerical values and facts must come strictly from the context. "
-                "Conclude with a warm, helpful closing offer (e.g., asking if they would like help applying or exploring specific perks)."
-            )
-            user_prompt = f"""<retrieved_context>
+    # Providers share one grounded prompt; only the transport and model differ.
+    system_prompt = (
+        "You are Lexi, the official Emirates NBD AI virtual banking assistant. "
+        "Your tone is warm, friendly, natural, empathetic, and professional—like an experienced Emirates NBD relationship manager chatting with a customer. "
+        "IMPORTANT: Do NOT start your message with 'Hi, I'm Lexi' or repeat your name on every turn. The chat interface already clearly displays your name. Only introduce yourself by name if the user explicitly greets you or asks who you are. "
+        "Never use robotic boilerplate like 'According to official Emirates NBD documentation for X:'. On standard queries, dive straight into answering the user's question with warm, professional phrasing (e.g. 'Here is what you need to know about...', 'Here are the details for...', 'Here is an overview of...'). "
+        f"{category_instruction} "
+        "Formatting Guidelines: "
+        "- For general bank inquiries ('about emirates nbd', 'overview', 'about the bank'), provide a warm introduction to Emirates NBD as a leading UAE bank and briefly outline the primary verified banking categories available (Credit Cards, Debit Cards, Accounts, Wealth, Loans). "
+        "- For product discovery (when listing cards, accounts, or services), present the options in a clean Markdown table with columns: | Product Name | Key Highlights / Rewards | Annual Fee | Minimum Requirement |. "
+        "- For product comparisons, present a clear side-by-side Markdown comparison table (| Feature / Detail | Product A | Product B |) followed by a helpful conversational summary. "
+        "- For single-product inquiries, answer conversationally with clean bullet points or structured highlights for fees, balance rules, and requirements. "
+        "When answering inquiries about account minimum balance, maintenance fees, or requirements for promotional/specialized accounts (such as the Millionaire Account), explain both its specific features (e.g. prize draws) and its governing baseline terms from Emirates NBD's Key Facts Statement (KFS) / Personal Banking Classic Package (e.g. minimum monthly average balance of AED 3,000, or AED 5,000 for standard digital savings, and AED 26.25 monthly fall-below fee with salary transfer exemptions). "
+        "Strict Grounding: Never extrapolate, guess, or invent fees, interest rates, or eligibility rules. All numerical values and facts must come strictly from the context. "
+        "Conclude with a warm, helpful closing offer (e.g., asking if they would like help applying or exploring specific perks)."
+    )
+    user_prompt = f"""<retrieved_context>
 {context_str}
 </retrieved_context>
 
@@ -1146,48 +1512,46 @@ async def generate_answer_node(state: ChatState) -> Dict[str, Any]:
 {query}
 </user_query>
 """
-            payload = {
-                "model": settings.OPENROUTER_MODEL,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "temperature": 0.2,
-            }
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(
-                    f"{settings.OPENROUTER_BASE_URL}/chat/completions",
-                    headers=headers,
-                    json=payload,
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    choices = data.get("choices", [])
-                    if choices:
-                        ans_text = choices[0].get("message", {}).get("content", "").strip()
-                        # Clean any internal reasoning tokens if model enabled thinking
-                        ans_clean = re.sub(r"<think>.*?</think>", "", ans_text, flags=re.DOTALL).strip()
-                        if ans_clean:
-                            if verify_number_groundedness(ans_clean, context_str):
-                                matched_ids = [
-                                    c.get("chunk_id")
-                                    for c in chunks
-                                    if (c.get("product_name") and any(term in ans_clean.lower() for term in c.get("product_name").lower().split() if len(term) > 3))
-                                    or (c.get("is_relational") and any(term in ans_clean.lower() for term in ["key facts", "kfs", "policy", "classic", "fall-below", "fall below", "minimum balance", "3,000", "5,000"]))
-                                ]
-                                used_ids = matched_ids if matched_ids else [c.get("chunk_id") for c in chunks[:3] if c.get("chunk_id")]
-                                return {
-                                    "answer": ans_clean,
-                                    "used_chunk_ids": used_ids,
-                                    "answerable": True,
-                                    "guardrail_passed": True,
-                                }
-                            else:
-                                logger.warning("OpenRouter generated ungrounded numbers. Falling back to deterministic synthesis.")
-        except Exception as e:
-            logger.warning("OpenRouter API generation failed (%s). Continuing to fallback generators.", e)
 
-    # 2. Attempt generation via Gemini Flash if API key is provided and valid
+    # 1. Primary: xAI Grok (XAI_MODEL, e.g. grok-build-0.1)
+    if settings.XAI_API_KEY and not settings.XAI_API_KEY.startswith("<"):
+        xai_result = await _grounded_chat_completion(
+            url=f"{settings.XAI_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.XAI_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            model=settings.XAI_MODEL,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            context_str=context_str,
+            chunks=chunks,
+            provider_label="xAI Grok",
+        )
+        if xai_result:
+            return xai_result
+
+    # 2. Fallback: OpenRouter (supports openrouter/free)
+    if settings.OPENROUTER_API_KEY and not settings.OPENROUTER_API_KEY.startswith("<"):
+        openrouter_result = await _grounded_chat_completion(
+            url=f"{settings.OPENROUTER_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "http://localhost:8000",
+                "X-Title": "Web-Assist",
+            },
+            model=settings.OPENROUTER_MODEL,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            context_str=context_str,
+            chunks=chunks,
+            provider_label="OpenRouter",
+        )
+        if openrouter_result:
+            return openrouter_result
+
+    # 3. Fallback: Gemini Flash if API key is provided and valid
     if settings.GEMINI_API_KEY and not settings.GEMINI_API_KEY.startswith("AIzaSy..."):
         try:
             from google import genai
@@ -1238,7 +1602,7 @@ If context is insufficient, set answerable=false and state politely that informa
         except Exception as e:
             logger.warning("Gemini API call failed (%s). Falling back to deterministic grounded synthesis.", e)
 
-    # 3. Resilient Deterministic Grounded Synthesis
+    # 4. Resilient Deterministic Grounded Synthesis
     products_in_context = state.get("products_in_context", [])
     answer, used_chunk_ids = deterministic_grounded_synthesis(
         query, intent, chunks, target_category=target_category, products_in_context=products_in_context
@@ -1321,18 +1685,25 @@ def fallback_node(state: ChatState) -> Dict[str, Any]:
         )
     elif reason == "injection_attempt":
         answer = (
-            "Hello! I'm Lexi, your Emirates NBD assistant. I can only assist with verified "
-            "Emirates NBD banking products and services based on official website documentation."
+            "I can only assist with verified Emirates NBD banking products and services based on "
+            "official website documentation."
         )
     elif reason == "off_topic":
         answer = (
-            "Hello! I'm Lexi, your Emirates NBD virtual banking assistant. I cannot assist with external or "
-            "unrelated topics, and can only assist with verified Emirates NBD products, accounts, cards, and banking services. "
+            "I cannot assist with external or unrelated topics. I can help with verified Emirates NBD "
+            "products, accounts, cards, and banking services. "
             "Is there an account or card option I can help you with?"
+        )
+    elif reason == "unverified_product":
+        product = state.get("unknown_product") or "that product"
+        answer = (
+            f"I don't have verified details for {product} in the Emirates NBD catalog I cover. "
+            "I can help with the products in the verified catalog - credit cards, debit cards, "
+            "accounts, savings, and banking services. Would you like to see what's available?"
         )
     else:
         answer = (
-            "Hello! I'm Lexi. I'm sorry, but I couldn't find verified information on that in our official "
+            "I'm sorry, but I couldn't find verified information on that in our official "
             "Emirates NBD documentation. Please check our official website or reach out to our 24/7 customer "
             "care team at 600 54 0000 for personal assistance."
         )

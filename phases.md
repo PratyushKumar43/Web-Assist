@@ -6,14 +6,14 @@
 
 ## Phase 0: Project Scaffolding & Server Execution (`fastapi dev`)
 
-- [ ] Initialize Python 3.11 environment, `pyproject.toml` with `fastapi[standard]>=0.110.0`, `pydantic>=2.6.0`, and Ruff.
-- [ ] Create documented `.env.example` detailing all keys (`SITE_URL`, `GEMINI_API_KEY`, `FIRECRAWL_API_KEY`, `TINYFISH_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, thresholds).
-- [ ] Configure `app/config.py` using Pydantic Settings (auto-detects local vs Vercel environment).
-- [ ] Implement foundational Pydantic schemas in `app/models.py` (`ChatRequest`, `ChatResponse`, `SourceItem`, `LLMAnswerOutput`).
-- [ ] Scaffold FastAPI backend (`app/main.py`) with `GET /api/health` and static files mount.
-- [ ] Verify local server start using the official CLI: `fastapi dev app/main.py`.
-- [ ] Add `vercel.json` for serverless routing and `Dockerfile` + `docker-compose.yml` for local container reproducibility.
-- [ ] Ensure `.gitignore` excludes `.env`, `data/`, `*.db`, and cache directories.
+- [x] Initialize Python 3.11 environment, `pyproject.toml` with `fastapi[standard]>=0.110.0`, `pydantic>=2.6.0`, and Ruff.
+- [x] Create documented `.env.example` detailing all keys (`SITE_URL`, `GEMINI_API_KEY`, `FIRECRAWL_API_KEY`, `TINYFISH_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, thresholds).
+- [x] Configure `app/config.py` using Pydantic Settings (auto-detects local vs Vercel environment).
+- [x] Implement foundational Pydantic schemas in `app/models.py` (`ChatRequest`, `ChatResponse`, `SourceItem`, `LLMAnswerOutput`).
+- [x] Scaffold FastAPI backend (`app/main.py`) with `GET /api/health` and static files mount.
+- [x] Verify local server start using the official CLI: `fastapi dev app/main.py`.
+- [x] Add `vercel.json` for serverless routing and `Dockerfile` + `docker-compose.yml` for local container reproducibility.
+- [x] Ensure `.gitignore` excludes `.env`, `data/`, `*.db`, and cache directories.
 
 **Exit Check**:
 - Running `fastapi dev app/main.py` starts server at `http://127.0.0.1:8000`.
@@ -24,11 +24,11 @@
 
 ## Phase 1: Resilient Crawler & Content Extraction
 
-- [ ] Implement `Crawler` interface in `app/scraper.py` supporting Firecrawl API with **TinyFish AI** (`https://www.tinyfish.ai/`) failover.
-- [ ] Add `urllib.robotparser` validation and enforce 1 request per second politeness limit.
-- [ ] Filter crawl discovery to the domain specified by `SITE_URL`.
-- [ ] Extract clean markdown while strictly keeping financial/product tables intact.
-- [ ] Cache raw page contents in `data/raw/` and record page statuses in SQLite `kb.db`.
+- [x] Implement `Crawler` interface in `app/scraper.py` supporting Firecrawl API with **TinyFish AI** (`https://www.tinyfish.ai/`) failover.
+- [x] Add `urllib.robotparser` validation and enforce 1 request per second politeness limit.
+- [x] Filter crawl discovery to the domain specified by `SITE_URL`.
+- [x] Extract clean markdown while strictly keeping financial/product tables intact.
+- [x] Cache raw page contents in `data/raw/` and record page statuses in SQLite `kb.db`.
 
 **Exit Check**:
 - Target site pages successfully fetched and cached via Firecrawl or TinyFish fallback.
@@ -174,8 +174,29 @@ Replaced the Tailwind/Marked frontend with a single-file WhatsApp-style shell, a
 - [x] Remove the client-side simulated-response mode; a backend failure now renders an honest error bubble.
 - [x] Escape all dynamic values and drive interactions through `data-*` attributes with one delegated listener.
 - [x] Allow only `http(s)` source URLs through a protocol allowlist.
+- [x] Keep paragraph breaks in `intro` and surface any verdict printed after a comparison table (the bubble renders `pre-line`).
+- [x] Route DISCOVERY and ABOUT straight to `deterministic_grounded_synthesis`, so every listed product exists in `app/catalog.json`.
+- [x] Resolve selection follow-ups ("which one has the lower annual fee?") against the recent comparison pair instead of re-querying the whole category.
+- [x] Answer the cheaper-fee case from the catalog figures in the comparison table.
 
 **Exit Check**:
 - DISCOVERY renders product cards, FACT a spec grid, COMPARISON two cards, and OUT_OF_SCOPE an amber bubble with no cards.
-- `python -m pytest tests/ -q` passes 78/78, including `tests/test_ui_view.py`.
+- `python -m pytest tests/ -q` passes 90/90, including `tests/test_ui_view.py`; `python -m scripts.run_eval` passes 15/15.
 - `node --check` on the page's script reports no syntax errors.
+
+---
+
+## Phase 10: Browser QA & Cross-Card Fact Isolation (Post-Launch)
+
+Comprehensive 9-turn end-to-end testing via the Browser QA agent identified and resolved three production edge cases:
+
+- [x] **Entity Pinning Decoupling**: Decoupled explicit query product matching from `top_chunk_prod` in `deterministic_grounded_synthesis`, ensuring targeted inquiries (e.g. *"tell me more about Voyager World Credit Card, what is its annual fee and minimum salary?"*) never get shadowed by unrelated top chunks (Skywards Infinite).
+- [x] **Cross-Card Fact Isolation**: When a target product is matched, `fact_chunks` are strictly isolated to that product and general policy chunks, preventing features from one card (e.g. Skywards Miles) from bleeding into another (e.g. Voyager World).
+- [x] **Metadata & Image Stripping**: Added line-by-line filters in `clean_facts` rejecting chunk prefixes (`r"^\[Product:\s*.*?\]"`), markdown images (`![...`), and UI button text (`Apply Now`, `Read More`).
+- [x] **Dual-Subject Comparison Follow-ups**: Added `matches_product_name()` helper to recognize core product names despite naming variations (e.g. *"U By Emaar Signature Card"*), ensuring queries like *"what about both of their fees?"* rewrite to comparative queries and maintain `COMPARISON` intent.
+- [x] **Automated Regression Suite**: Added 3 unit tests in `tests/test_conversational_flows.py` specifically guarding entity pinning, metadata stripping, and dual-subject comparison follow-ups.
+
+**Exit Check**:
+- `python -m pytest tests/` passes **82/82 tests** across 10 test modules.
+- `python -m scripts.run_eval` passes **15/15 golden questions** (100.0%) with 0.66s avg latency.
+- Full 9-turn browser UI run recorded and verified with zero entity shadowing or metadata leakage.

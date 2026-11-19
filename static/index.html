@@ -330,6 +330,11 @@
       width: 100%;
     }
 
+    /* The API sends paragraph breaks as \n\n; keep them instead of reflowing into one block */
+    .bubble-intro {
+      white-space: pre-line;
+    }
+
     /* Fallback bubble: the bot declined, so the answer is visually flagged */
     .msg-row.bot .bubble.bubble-fallback {
       background: var(--accent-gold-soft);
@@ -1086,7 +1091,7 @@
             ${badgeFor(payload)}
             ${payload.cache_hit ? '<span class="badge badge-cache">&#9889; Cached</span>' : ""}
           </div>
-          <div>${escapeHtml(payload.intro)}</div>
+          <div class="bubble-intro">${escapeHtml(payload.intro)}</div>
           ${renderSpecs(payload.specs)}
           ${renderCards(payload.cards)}
           ${renderBullets(payload.bullets)}

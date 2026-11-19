@@ -33,4 +33,5 @@ class ChatState(TypedDict, total=False):
     answerable: bool
     guardrail_passed: bool
     fallback_reason: Optional[str]
+    unknown_product: Optional[str]
     products_in_context: List[str]

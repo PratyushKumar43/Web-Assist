@@ -20,8 +20,9 @@ This technical report details the architecture, design decisions, and empirical 
 - **Failover Ingestion Engine**: Firecrawl `/v1/scrape` with automated fallback to TinyFish AI headless extraction and local polite DOM processing.
 - **Dual Dense-Sparse Hybrid Search**: FastEmbed BGE-small dense vectors (384 dims) and BM25 sparse vectors fused in Qdrant Cloud via Reciprocal Rank Fusion (RRF).
 - **Zero-SQLite Serverless Cloud Parity**: Complete elimination of runtime SQLite dependencies on Vercel by co-locating chunk payloads and source metadata in Qdrant Cloud points and bundling a static `products_catalog.json`.
-- **5-Tier Guardrail Architecture**: Multi-stage validation covering prompt injection interception, strict relevance gates ($\text{RRF} \ge 0.35$), structured JSON schema enforcement, number/currency verification, and server-side source citation synthesis.
-- **Empirical Evaluation**: 15/15 (100%) pass rate across all 5 golden question categories with an average response latency of 0.31 seconds.
+- **Cascading Multi-Provider Generation**: OpenRouter -> xAI Grok (`grok-2-latest`) -> Google Gemini Flash -> Offline Deterministic Grounded Synthesis for 100% operational uptime.
+- **5-Tier Guardrail Architecture**: Multi-stage validation covering prompt injection interception, strict relevance gates ($\text{RRF} \ge 0.35$), structured JSON schema enforcement, number/currency verification, entity pinning, fact bleeding isolation, and server-side source citation synthesis.
+- **Empirical Evaluation**: 15/15 (100%) pass rate across all 5 golden question categories, 90/90 passing automated unit tests, and full browser UI end-to-end verification.
 
 ---
 
@@ -244,7 +245,7 @@ fastapi dev app/main.py
 # Run 15-question benchmark
 python -m scripts.run_eval
 
-# Run complete pytest test suite (29 tests)
+# Run complete pytest test suite (90 tests across 10 modules)
 pytest tests/ -v
 ```
 

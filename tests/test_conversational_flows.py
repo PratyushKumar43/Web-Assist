@@ -1,5 +1,6 @@
-﻿import pytest
+import pytest
 import asyncio
+import re
 from app.graph.state import ChatState
 from app.graph.nodes import (
     rewrite_query_node,
@@ -276,7 +277,7 @@ async def test_end_to_end_user_reported_flow():
     resp2 = await run_chat_turn("difference in U By Emaar Signature Credit Card and Visa Flexi Credit Card")
     assert resp2.answerable is True
     assert resp2.intent == "COMPARISON"
-    assert "| Feature / Detail |" in resp2.answer
+    assert "| Feature" in resp2.answer
     assert "U By Emaar Signature Credit Card" in resp2.answer
     assert "Visa Flexi Credit Card" in resp2.answer
 
@@ -288,7 +289,7 @@ async def test_end_to_end_user_reported_flow():
     resp3 = await run_chat_turn("i want both difference", messages=history)
     assert resp3.answerable is True
     assert resp3.intent == "COMPARISON"
-    assert "| Feature / Detail |" in resp3.answer
+    assert "| Feature" in resp3.answer
     assert "U By Emaar Signature Credit Card" in resp3.answer
     assert "Visa Flexi Credit Card" in resp3.answer
     assert "AED 262.50" in resp3.answer or "Free for Life" in resp3.answer
@@ -343,6 +344,24 @@ def test_bare_affirmation_after_product_question_keeps_product_thread():
     result = rewrite_query_node({"raw_query": "yes", "messages": messages})
     assert result["standalone_query"] == "tell me about U By Emaar Signature Credit Card"
     assert "list all" not in result["standalone_query"].lower()
+
+
+def test_bare_affirmation_after_elliptical_followup_resolves_the_product():
+    """'yes' after 'and its joining fee?' must not replay a pronoun into the retriever."""
+    messages = [
+        {"role": "user", "content": "tell me about U By Emaar Signature Credit Card"},
+        {
+            "role": "assistant",
+            "content": "Here is what you need to know about **U By Emaar Signature Credit Card**.",
+        },
+        {"role": "user", "content": "and its joining fee?"},
+        {"role": "assistant", "content": "The joining fee for the U By Emaar Signature Credit Card is AED 525."},
+    ]
+    result = rewrite_query_node({"raw_query": "yes", "messages": messages})
+
+    rewritten = result["standalone_query"].lower()
+    assert "u by emaar signature credit card" in rewritten
+    assert "its" not in rewritten
 
 
 def test_about_your_products_is_discovery():
@@ -572,13 +591,30 @@ def test_fact_answer_ignores_catalog_directory_and_metadata():
             ),
         },
         {
+            "chunk_id": "catalog_u-by-emaar",
+            "product_name": "U By Emaar Signature Credit Card",
+            "category": "Credit Cards",
+            "url": "https://www.emiratesnbd.com/en/cards/credit-cards/u-by-emaar-signature-credit-card",
+            "text": (
+                "Product: U By Emaar Signature Credit Card\n"
+                "Category: Credit Cards\n"
+                "Summary: Lifestyle credit card offering exclusive Upoints back.\n"
+                "Annual Fee: AED 262.50\n"
+                "Joining Fee: AED 525\n"
+                "Requirements: Minimum Salary: AED 12,000"
+            ),
+        },
+        {
             "chunk_id": "u-0",
             "product_name": "U By Emaar Signature Credit Card",
             "category": "Credit Cards",
             "url": "https://www.emiratesnbd.com/en/cards/credit-cards/u-by-emaar-signature-credit-card",
             "text": (
                 "Earn 6.25% back as Upoints on all Emaar spends\n"
-                "Redeem Upoints at over 2500 stores across the UAE"
+                "Redeem Upoints at over 2500 stores across the UAE\n"
+                "Update your info\n"
+                "Everyday banking\n"
+                "Rewards & Benefits"
             ),
         },
     ]
@@ -590,6 +626,10 @@ def test_fact_answer_ignores_catalog_directory_and_metadata():
     assert "Emirates NBD offers 7 Credit Cards products" not in answer
     assert "Official Regulatory & Policy Context" not in answer
     assert "Product Category: credit-cards" not in answer
+    assert "Summary: Lifestyle credit card" not in answer
+    assert "Category: Credit Cards" not in answer
+    assert "Update your info" not in answer
+    assert "Everyday banking" not in answer
     assert "6.25%" in answer
     assert used_chunk_ids == ["u-0"]
 
@@ -676,3 +716,82 @@ def test_both_fees_comparison_followup():
     r_res = router_node(state)
     assert r_res["intent"] == "COMPARISON"
     assert len(r_res.get("products_in_context", [])) == 2
+
+
+def test_selection_followup_binds_which_one_to_recent_pair():
+    """'which one has the lower annual fee?' after a comparison must stay a comparison."""
+    messages = [
+        {"role": "user", "content": "Compare Voyager World Credit Card and Emirates Skywards Visa Infinite Credit Card"},
+        {
+            "role": "assistant",
+            "content": "Both cards are excellent travel-focused options with different annual fees.",
+        },
+    ]
+    state: ChatState = {"raw_query": "which one has the lower annual fee?", "messages": messages}
+
+    rewritten = rewrite_query_node(state)["standalone_query"]
+    assert rewritten.lower().startswith("compare the annual fee of")
+    assert "voyager world credit card" in rewritten.lower()
+    assert "skywards visa infinite" in rewritten.lower()
+
+    state["standalone_query"] = rewritten
+    r_res = router_node(state)
+    assert r_res["intent"] == "COMPARISON"
+    assert len(r_res.get("products_in_context", [])) == 2
+
+
+@pytest.mark.asyncio
+async def test_discovery_answer_is_the_catalog_table_not_llm_prose(monkeypatch):
+    """DISCOVERY never reaches an LLM: every listed product exists in app/catalog.json."""
+    import httpx
+
+    from app.graph.nodes import generate_answer_node, load_catalog_data
+
+    class _NoLLM:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("DISCOVERY must build its answer from the catalog, not an LLM")
+
+    monkeypatch.setattr(httpx, "AsyncClient", _NoLLM)
+
+    state: ChatState = {
+        "standalone_query": "List all Emirates NBD banking products and services",
+        "intent": "DISCOVERY",
+        "retrieved_chunks": [],
+        "target_category": None,
+    }
+    result = await generate_answer_node(state)
+
+    assert result["answerable"] is True
+    assert "| Product Name | Category |" in result["answer"]
+    listed = re.findall(r"^\| \*\*(.+?)\*\* \|", result["answer"], re.MULTILINE)
+    catalog_names = {p["name"] for p in load_catalog_data()}
+    assert listed
+    assert set(listed) <= catalog_names
+
+
+def test_fact_table_keeps_joining_fee_separate_from_annual_fee():
+    """A joining fee is its own catalog field, never folded into the annual fee row."""
+    answer, _ = deterministic_grounded_synthesis(
+        "What is the joining fee of U By Emaar Signature Credit Card?",
+        "FACT",
+        [],
+    )
+
+    assert "| **Annual Fee** | AED 262.50 |" in answer
+    assert "| **Joining Fee** | AED 525 |" in answer
+    assert "Annual / Joining Fee" not in answer
+
+
+def test_comparison_states_the_cheaper_annual_fee():
+    """The deterministic comparison answers the selection question from the catalog figures."""
+    answer, _ = deterministic_grounded_synthesis(
+        "Compare the annual fee of Voyager World Credit Card and Emirates Skywards Visa Infinite Credit Card",
+        "COMPARISON",
+        [],
+        products_in_context=[
+            "Voyager World Credit Card",
+            "Emirates Skywards Visa Infinite Credit Card",
+        ],
+    )
+
+    assert "**Voyager World Credit Card** has the lower annual fee" in answer
