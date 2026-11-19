@@ -168,7 +168,8 @@ Web-Assist/
 │   └── eval_report.md        # 15-question benchmark report
 ├── docs/
 │   ├── technical_report.md   # Comprehensive 4-6 page technical documentation
-│   └── demo_script.md        # 5-minute recorded video demonstration script
+│   ├── demo_script.md        # 5-minute recorded video demonstration script
+│   └── Engineering_Assignment_Website_RAG_Chatbot.pdf # Original engineering assignment specification
 ├── scripts/
 │   ├── build_kb.py           # Master one-command knowledge base builder
 │   ├── run_crawl.py          # Standalone crawler runner

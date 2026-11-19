@@ -3,8 +3,13 @@
 .env.local
 .env.*.local
 
-# Data & Knowledge Base
-data/
+# Data Caches & Local Databases (Reports & JSON catalog are tracked)
+data/raw/
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+data/*.jsonl
+data/qdrant_data/
 *.db
 *.sqlite
 *.sqlite3
