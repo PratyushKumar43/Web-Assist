@@ -351,5 +351,7 @@ def build_pdf(output_pdf_path: Path, image_path: Path):
 
 if __name__ == "__main__":
     pdf_out = Path("docs/technical_report.pdf")
-    img_src = Path("docs/lexi_architecture_infographic_labeled_arrows.jpg")
+    img_src = Path("docs/lexi_monochrome_architecture_diagram.jpg")
+    if not img_src.exists():
+        img_src = Path("docs/lexi_architecture_infographic_labeled_arrows.jpg")
     build_pdf(pdf_out, img_src)

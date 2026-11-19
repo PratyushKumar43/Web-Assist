@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lexi - System Architecture (Monochrome Edition)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --border-dark: #0f172a;
+      --text-main: #09090b;
+      --text-muted: #64748b;
+      --text-sub: #71717a;
+      --pill-bg: #f8fafc;
+      --pill-border: #cbd5e1;
+      --card-subtle: #f8fafc;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background-color: #fafafa;
+      color: var(--text-main);
+      padding: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-width: 1360px;
+    }
+
+    .container {
+      background: #ffffff;
+      width: 1280px;
+      border: 1px solid #d4d4d8;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+      padding: 36px 40px;
+    }
+
+    /* Minimalist Header */
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+      margin-bottom: 36px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .header-left h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #09090b;
+      text-transform: uppercase;
+    }
+    .header-left p {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    .header-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      padding: 6px 14px;
+      border-radius: 20px;
+      color: #27272a;
+      font-weight: 600;
+    }
+
+    /* Section Headings */
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-sub);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e4e4e7;
+    }
+
+    /* Cards */
+    .card {
+      background: #ffffff;
+      border: 1px solid #e4e4e7;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      transition: all 0.2s ease;
+    }
+    .card-dark {
+      background: #09090b;
+      color: #ffffff;
+      border-color: #09090b;
+    }
+    .card-dark .card-subtitle { color: #a1a1aa; }
+    .card-dark .card-desc { color: #d4d4d8; }
+
+    .card-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+    }
+    .card-dark .card-num { color: #71717a; }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: inherit;
+      margin-bottom: 4px;
+    }
+    .card-subtitle {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .card-desc {
+      font-size: 12px;
+      line-height: 1.5;
+      color: #3f3f46;
+    }
+
+    /* Tier 1: Client Gateway */
+    .tier-1 {
+      display: grid;
+      grid-template-columns: 320px 80px 420px 80px 320px;
+      align-items: center;
+      margin-bottom: 36px;
+    }
+
+    /* Minimalist Arrows */
+    .h-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0 4px;
+    }
+    .connector-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--text-sub);
+      font-weight: 600;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .line-arrow-right {
+      width: 100%;
+      height: 1px;
+      background: #71717a;
+      position: relative;
+    }
+    .line-arrow-right::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: -3px;
+      border-left: 5px solid #71717a;
+      border-top: 3.5px solid transparent;
+      border-bottom: 3.5px solid transparent;
+    }
+
+    /* Tier 2: LangGraph Orchestration */
+    .tier-2 {
+      margin-bottom: 36px;
+    }
+    .langgraph-box {
+      background: #fafafa;
+      border: 1px solid #e4e4e7;
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .nodes-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      position: relative;
+    }
+    .node-item {
+      background: #ffffff;
+      border: 1px solid #d4d4d8;
+      border-radius: 10px;
+      padding: 14px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 120px;
+    }
+    .node-arrow {
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #a1a1aa;
+      font-size: 16px;
+      font-weight: 300;
+    }
+
+    /* Vertical Connectors */
+    .v-connectors {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin: 16px 0;
+      padding: 0 10px;
+    }
+    .v-conn-item {
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-sub);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    /* Tier 3: Foundation Engines */
+    .tier-3 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    /* Clean Meta Badges */
+    .badge-pill {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-top: 8px;
+      color: #3f3f46;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <h1>Lexi System Architecture</h1>
+        <p>Emirates NBD Grounded Conversational RAG Platform — End-to-End Workflow</p>
+      </div>
+      <div class="header-tag">PRODUCTION MONOCHROME SPEC</div>
+    </div>
+
+    <!-- TIER 1: CLIENT & GATEWAY -->
+    <div class="section-title">1. Client & API Gateway Layer</div>
+    <div class="tier-1">
+      
+      <!-- 1. User Interaction -->
+      <div class="card">
+        <div class="card-num">01 / USER</div>
+        <div class="card-title">User Interaction</div>
+        <div class="card-subtitle">Retail, Expat & SME Customers</div>
+        <div class="card-desc">
+          Natural language banking inquiries, voice transcripts, and conversational follow-ups (e.g. <i>"tell me all"</i>, <i>"what about fees?"</i>).
+        </div>
+        <div class="badge-pill">Multi-Turn Session</div>
+      </div>
+
+      <!-- Arrow 1 -> 2 -->
+      <div class="h-connector">
+        <span class="connector-text">Query</span>
+        <div class="line-arrow-right"></div>
+      </div>
+
+      <!-- 2. Frontend -->
+      <div class="card">
+        <div class="card-num">02 / FRONTEND</div>
+        <div class="card-title">Chat Interface (Vanilla JS)</div>
+        <div class="card-subtitle">Zero-Build Typed View Model</div>
+        <div class="card-desc">
+          Renders structured responses, Markdown catalog comparison tables, and collapsible source citations. No raw markdown parsing.
+        </div>
+        <div class="badge-pill">Zero CDN Dependencies</div>
+      </div>
+
+      <!-- Arrow 2 -> 3 -->
+      <div class="h-connector">
+        <span class="connector-text">API Turn</span>
+        <div class="line-arrow-right"></div>
+      </div>
+
+      <!-- 3. Backend Gateway -->
+      <div class="card card-dark">
+        <div class="card-num">03 / GATEWAY</div>
+        <div class="card-title">FastAPI Backend</div>
+        <div class="card-subtitle">Port 8000 & Vercel Serverless</div>
+        <div class="card-desc">
+          API routing (<code>/api/chat</code>, <code>/api/chat/ui</code>), Pydantic input sanitization, and Tier 1 prompt injection interception.
+        </div>
+        <div class="badge-pill" style="background:#27272a; border-color:#3f3f46; color:#d4d4d8;">Stateless Parity</div>
+      </div>
+
+    </div>
+
+    <!-- TIER 2: LANGGRAPH ORCHESTRATION -->
+    <div class="section-title">2. LangGraph Stateful Orchestration Machine</div>
+    <div class="tier-2">
+      <div class="langgraph-box">
+        <div class="nodes-grid">
+
+          <!-- Node 1 -->
+          <div class="node-item">
+            <div class="card-num">N1</div>
+            <div class="card-title" style="font-size:13.5px;">Contextualize</div>
+            <div class="card-desc" style="font-size:11px;">
+              Rewrites elliptical queries using the last 6 turns into explicit standalone banking queries.
+            </div>
+            <div class="node-arrow">→</div>
+          </div>
+
+          <!-- Node 2 -->
+          <div class="node-item">
+            <div class="card-num">N2</div>
+            <div class="card-title" style="font-size:13.5px;">Route Intent</div>
+            <div class="card-desc" style="font-size:11px;">
+              Pydantic structured classifier: <code>DISCOVERY</code>, <code>FACT</code>, <code>COMPARISON</code>, or <code>FALLBACK</code>.
+            </div>
+            <div class="node-arrow">→</div>
+          </div>
+
+          <!-- Node 3 -->
+          <div class="node-item">
+            <div class="card-num">N3</div>
+            <div class="card-title" style="font-size:13.5px;">Hybrid Retrieval</div>
+            <div class="card-desc" style="font-size:11px;">
+              Qdrant dense + BM25 RRF fusion. Category filters, catalog anchors, and entity pinning.
+            </div>
+            <div class="node-arrow">→</div>
+          </div>
+
+          <!-- Node 4 -->
+          <div class="node-item">
+            <div class="card-num">N4</div>
+            <div class="card-title" style="font-size:13.5px;">Document Grader</div>
+            <div class="card-desc" style="font-size:11px;">
+              Relevance confidence check (RRF &ge; 0.35). Routes ungrounded context directly to fallback.
+            </div>
+            <div class="node-arrow">→</div>
+          </div>
+
+          <!-- Node 5 -->
+          <div class="node-item">
+            <div class="card-num">N5</div>
+            <div class="card-title" style="font-size:13.5px;">Generate & Verify</div>
+            <div class="card-desc" style="font-size:11px;">
+              Grounded answer synthesis with numerical AED checks and server-side citation assembly.
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Vertical Dataflow Connectors -->
+    <div class="v-connectors">
+      <div class="v-conn-item">
+        <span>▲ Ingest Chunks</span>
+      </div>
+      <div class="v-conn-item">
+        <span>▲ Top-K RRF Chunks ▼ Dense/Sparse Query</span>
+      </div>
+      <div class="v-conn-item">
+        <span>▲ Verified Triples ▼ Rate Query</span>
+      </div>
+      <div class="v-conn-item">
+        <span>▲ Grounded Output ▼ Context Prompt</span>
+      </div>
+    </div>
+
+    <!-- TIER 3: DATA & INTELLIGENCE ENGINES -->
+    <div class="section-title">3. Data, Ingestion & Intelligence Engines</div>
+    <div class="tier-3">
+
+      <!-- 5. Firecrawl -->
+      <div class="card">
+        <div class="card-num">04 / CRAWLER</div>
+        <div class="card-title">Firecrawl API</div>
+        <div class="card-subtitle">With TinyFish Failover</div>
+        <div class="card-desc">
+          Autonomous web crawler with DOM stripping, UAE Dirham Unicode normalization, and Synthetic Master Catalog Anchors.
+        </div>
+        <div class="badge-pill">1,130 Chunks</div>
+      </div>
+
+      <!-- 6. Qdrant -->
+      <div class="card">
+        <div class="card-num">05 / VECTOR DB</div>
+        <div class="card-title">Qdrant Cloud</div>
+        <div class="card-subtitle">Hybrid Vector Index</div>
+        <div class="card-desc">
+          Dense FastEmbed (BGE-small, 384d) + Sparse BM25 fused via Reciprocal Rank Fusion ($RRF\\ \\alpha=60$).
+        </div>
+        <div class="badge-pill">Cosine Distance</div>
+      </div>
+
+      <!-- 7. Tavily & KG -->
+      <div class="card">
+        <div class="card-num">06 / VERIFY</div>
+        <div class="card-title">Tavily & SQLite KG</div>
+        <div class="card-subtitle">External Search & Relations</div>
+        <div class="card-desc">
+          Live rate verification fallback and relational Knowledge Graph for Key Fact Statement (KFS) policy compliance.
+        </div>
+        <div class="badge-pill">Entity Triples</div>
+      </div>
+
+      <!-- 8. xAI Grok -->
+      <div class="card card-dark">
+        <div class="card-num">07 / LLM</div>
+        <div class="card-title">xAI Grok 2</div>
+        <div class="card-subtitle">Model: grok-2-latest</div>
+        <div class="card-desc">
+          Primary high-reasoning engine generating Markdown catalog comparison tables and single-product specification cards.
+        </div>
+        <div class="badge-pill" style="background:#27272a; border-color:#3f3f46; color:#d4d4d8;">Cascading Failover</div>
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>
