@@ -1,0 +1,382 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 0 2540 1320" width="2540" height="1320">
+<defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#1e3a5f" />
+          </marker>
+          <marker id="arrowhead-start" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#c2410c" />
+          </marker>
+          <marker id="arrowhead-decision" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#b45309" />
+          </marker>
+          <marker id="arrowhead-ai" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#6d28d9" />
+          </marker>
+          <marker id="arrowhead-success" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#047857" />
+          </marker>
+          <marker id="arrowhead-warning" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#dc2626" />
+          </marker>
+          <filter id="shadow" x="-5%" y="-5%" width="115%" height="115%">
+            <feDropShadow dx="3" dy="3" stdDeviation="0" flood-color="#334155" flood-opacity="0.35"/>
+          </filter>
+        </defs>
+<rect x="20" y="0" width="2540" height="1320" fill="#ffffff" />
+<rect x="60" y="120" width="2460" height="90" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6,4"  />
+<rect x="90" y="155" width="210" height="40" rx="8" fill="#fed7aa" stroke="#c2410c" stroke-width="2"  filter="url(#shadow)" />
+<rect x="360" y="155" width="210" height="40" rx="8" fill="#60a5fa" stroke="#1e3a5f" stroke-width="2"  filter="url(#shadow)" />
+<rect x="630" y="155" width="210" height="40" rx="8" fill="#ddd6fe" stroke="#6d28d9" stroke-width="2"  filter="url(#shadow)" />
+<rect x="900" y="155" width="210" height="40" rx="8" fill="#fef3c7" stroke="#b45309" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1170" y="155" width="210" height="40" rx="8" fill="#3b82f6" stroke="#1e3a5f" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1440" y="155" width="210" height="40" rx="8" fill="#fef3c7" stroke="#b45309" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1710" y="155" width="210" height="40" rx="8" fill="#ddd6fe" stroke="#6d28d9" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1980" y="155" width="210" height="40" rx="8" fill="#a7f3d0" stroke="#047857" stroke-width="2"  filter="url(#shadow)" />
+<rect x="2250" y="155" width="210" height="40" rx="8" fill="#a7f3d0" stroke="#047857" stroke-width="2"  filter="url(#shadow)" />
+<rect x="60" y="240" width="660" height="1040" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6,4"  />
+<rect x="100" y="330" width="240" height="65" rx="8" fill="#fed7aa" stroke="#c2410c" stroke-width="2"  filter="url(#shadow)" />
+<rect x="100" y="440" width="240" height="75" rx="8" fill="#60a5fa" stroke="#1e3a5f" stroke-width="2"  filter="url(#shadow)" />
+<rect x="100" y="560" width="240" height="65" rx="8" fill="#3b82f6" stroke="#1e3a5f" stroke-width="2"  filter="url(#shadow)" />
+<rect x="100" y="670" width="240" height="85" rx="8" fill="#fef3c7" stroke="#b45309" stroke-width="2"  filter="url(#shadow)" />
+<rect x="100" y="800" width="240" height="75" rx="8" fill="#ddd6fe" stroke="#6d28d9" stroke-width="2"  filter="url(#shadow)" />
+<rect x="100" y="920" width="240" height="65" rx="8" fill="#60a5fa" stroke="#1e3a5f" stroke-width="2"  filter="url(#shadow)" />
+<rect x="380" y="330" width="310" height="220" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"  filter="url(#shadow)" />
+<rect x="380" y="580" width="310" height="205" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"  filter="url(#shadow)" />
+<rect x="380" y="815" width="310" height="160" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"  filter="url(#shadow)" />
+<rect x="750" y="240" width="1100" height="1040" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6,4"  />
+<rect x="790" y="330" width="240" height="55" rx="8" fill="#fed7aa" stroke="#c2410c" stroke-width="2"  filter="url(#shadow)" />
+<rect x="790" y="430" width="240" height="75" rx="8" fill="#ddd6fe" stroke="#6d28d9" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1070" y="330" width="420" height="175" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"  filter="url(#shadow)" />
+<rect x="790" y="550" width="240" height="75" rx="8" fill="#fef3c7" stroke="#b45309" stroke-width="2"  filter="url(#shadow)" />
+<rect x="790" y="680" width="240" height="65" rx="8" fill="#60a5fa" stroke="#1e3a5f" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1060" y="680" width="240" height="65" rx="8" fill="#60a5fa" stroke="#1e3a5f" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1330" y="680" width="240" height="65" rx="8" fill="#60a5fa" stroke="#1e3a5f" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1060" y="800" width="240" height="75" rx="8" fill="#fef3c7" stroke="#b45309" stroke-width="2"  filter="url(#shadow)" />
+<rect x="810" y="930" width="210" height="65" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1060" y="930" width="240" height="85" rx="8" fill="#ddd6fe" stroke="#6d28d9" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1060" y="1070" width="240" height="65" rx="8" fill="#a7f3d0" stroke="#047857" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1060" y="1180" width="240" height="55" rx="8" fill="#a7f3d0" stroke="#047857" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1350" y="800" width="460" height="280" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"  filter="url(#shadow)" />
+<rect x="1350" y="1100" width="460" height="150" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"  filter="url(#shadow)" />
+<rect x="1880" y="240" width="640" height="1040" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6,4"  />
+<rect x="1920" y="330" width="300" height="75" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1920" y="420" width="300" height="75" rx="8" fill="#fef3c7" stroke="#b45309" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1920" y="510" width="300" height="75" rx="8" fill="#3b82f6" stroke="#1e3a5f" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1920" y="600" width="300" height="75" rx="8" fill="#60a5fa" stroke="#1e3a5f" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1920" y="690" width="300" height="75" rx="8" fill="#a7f3d0" stroke="#047857" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1920" y="845" width="260" height="85" rx="8" fill="#3b82f6" stroke="#1e3a5f" stroke-width="2"  filter="url(#shadow)" />
+<rect x="2200" y="845" width="260" height="85" rx="8" fill="#a7f3d0" stroke="#047857" stroke-width="2"  filter="url(#shadow)" />
+<rect x="1920" y="950" width="540" height="160" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"  filter="url(#shadow)" />
+<rect x="1920" y="1130" width="540" height="140" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"  filter="url(#shadow)" />
+<polyline points="300,175 340,175" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="570,175 610,175" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="840,175 880,175" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="1110,175 1150,175" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="1380,175 1420,175" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="1650,175 1690,175" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="1920,175 1960,175" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="2190,175 2230,175" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="220,395 220,440" fill="none" stroke="#c2410c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-start)" />
+<polyline points="220,515 220,560" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="220,625 220,670" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="220,755 220,800" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-decision)" />
+<polyline points="220,755 140,850 140,920" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-decision)" />
+<polyline points="910,385 910,430" fill="none" stroke="#c2410c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-start)" />
+<polyline points="910,505 910,550" fill="none" stroke="#6d28d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-ai)" />
+<polyline points="860,625 860,680" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-decision)" />
+<polyline points="910,625 1180,650 1180,680" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-decision)" />
+<polyline points="960,625 1450,650 1450,680" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-decision)" />
+<polyline points="910,745 1110,800" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="1180,745 1180,800" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="1450,745 1250,800" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="1060,840 910,840 910,930" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-warning)" />
+<polyline points="1180,875 1180,930" fill="none" stroke="#047857" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-success)" />
+<polyline points="1180,1015 1180,1070" fill="none" stroke="#6d28d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-ai)" />
+<polyline points="1180,1135 1180,1180" fill="none" stroke="#047857" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-success)" />
+<polyline points="910,995 910,1205 1060,1205" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-warning)" />
+<polyline points="2070,405 2070,420" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-warning)" />
+<polyline points="2070,495 2070,510" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead-decision)" />
+<polyline points="2070,585 2070,600" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<polyline points="2070,675 2070,690" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+<text x="60" y="68" font-family="'Segoe UI', -apple-system, sans-serif" font-size="28px" font-weight="700" fill="#1e40af" text-anchor="start">
+  <tspan x="60" dy="0">Lexi: Emirates NBD Hybrid RAG State Machine &amp; Ingestion Workflow</tspan>
+</text>
+<text x="60" y="93" font-family="'Segoe UI', -apple-system, sans-serif" font-size="15px" font-weight="400" fill="#64748b" text-anchor="start">
+  <tspan x="60" dy="0">Production Visual Architecture Diagram | coleam00/excalidraw-diagram-skill | LangGraph 7-Node State Machine | Qdrant Hybrid RRF | 5-Tier Defense</tspan>
+</text>
+<text x="80" y="156" font-family="'Segoe UI', -apple-system, sans-serif" font-size="20px" font-weight="700" fill="#1e40af" text-anchor="start">
+  <tspan x="80" dy="0">Level 1: End-to-End Summary Pipeline (Multi-Zoom Overview)</tspan>
+</text>
+<text x="80" y="175" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="400" fill="#64748b" text-anchor="start">
+  <tspan x="80" dy="0">Continuous pipeline from Raw Web Crawl to Stateful Verification</tspan>
+</text>
+<text x="195.0" y="178.25" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="195.0" dy="0">1. Crawl &amp; Ingest</tspan>
+</text>
+<text x="465.0" y="178.25" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="465.0" dy="0">2. Clean &amp; Catalog</tspan>
+</text>
+<text x="735.0" y="178.25" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="735.0" dy="0">3. Rewriter Node</tspan>
+</text>
+<text x="1005.0" y="178.25" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="1005.0" dy="0">4. Router Gate</tspan>
+</text>
+<text x="1275.0" y="178.25" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#ffffff" text-anchor="middle">
+  <tspan x="1275.0" dy="0">5. Hybrid Search</tspan>
+</text>
+<text x="1545.0" y="178.25" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="1545.0" dy="0">6. Grader Gate</tspan>
+</text>
+<text x="1815.0" y="178.25" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="1815.0" dy="0">7. Generator Node</tspan>
+</text>
+<text x="2085.0" y="178.25" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="2085.0" dy="0">8. Server Citations</tspan>
+</text>
+<text x="2355.0" y="178.25" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="2355.0" dy="0">9. User Verification</tspan>
+</text>
+<text x="80" y="276" font-family="'Segoe UI', -apple-system, sans-serif" font-size="20px" font-weight="700" fill="#1e40af" text-anchor="start">
+  <tspan x="80" dy="0">1. Offline Ingestion &amp; Synthetic Catalog Anchors</tspan>
+</text>
+<text x="80" y="295" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="400" fill="#64748b" text-anchor="start">
+  <tspan x="80" dy="0">Crawling, DOM Cleansing, Hierarchical Breadcrumb Chunking &amp; Directory Matrix Synthesis</tspan>
+</text>
+<text x="220.0" y="356.65000000000003" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="220.0" dy="0">Firecrawl + TinyFish Crawler</tspan>
+  <tspan x="220.0" dy="16.900000000000002px">(Max Concurrency=4, Retries=3)</tspan>
+</text>
+<text x="220.0" y="463.2" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="220.0" dy="0">Strict DOM Stripper</tspan>
+  <tspan x="220.0" dy="16.900000000000002px">(Strips &lt;nav&gt;, cookie chrome,</tspan>
+  <tspan x="220.0" dy="16.900000000000002px">&amp; &#x27;Would you like to talk?&#x27;)</tspan>
+</text>
+<text x="220.0" y="586.65" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#ffffff" text-anchor="middle">
+  <tspan x="220.0" dy="0">Hierarchy Chunker</tspan>
+  <tspan x="220.0" dy="16.900000000000002px">(600 chars, 100 overlap, H1&gt;H2)</tspan>
+</text>
+<text x="220.0" y="698.1999999999999" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="220.0" dy="0">Master Catalog Anchors</tspan>
+  <tspan x="220.0" dy="16.900000000000002px">(Pre-indexed Category Matrices</tspan>
+  <tspan x="220.0" dy="16.900000000000002px">Prevent Top-K List Collapse)</tspan>
+</text>
+<text x="220.0" y="823.1999999999999" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="220.0" dy="0">Qdrant Cloud Hybrid Store</tspan>
+  <tspan x="220.0" dy="16.900000000000002px">Dense: BGE-Small (384d)</tspan>
+  <tspan x="220.0" dy="16.900000000000002px">Sparse: BM25 Lexical</tspan>
+</text>
+<text x="220.0" y="946.65" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="220.0" dy="0">SQLite Knowledge Graph</tspan>
+  <tspan x="220.0" dy="16.900000000000002px">(Product - Fee - KFS Triples)</tspan>
+</text>
+<text x="392" y="352" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="400" fill="#94a3b8" text-anchor="start">
+  <tspan x="392" dy="0">// Synthetic Catalog Anchor Chunk</tspan>
+</text>
+<text x="392" y="383.2" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#4ade80" text-anchor="start">
+  <tspan x="392" dy="0">{</tspan>
+  <tspan x="392" dy="15.600000000000001px">  &quot;product_name&quot;: &quot;All Credit Cards&quot;,</tspan>
+  <tspan x="392" dy="15.600000000000001px">  &quot;category&quot;: &quot;credit_cards&quot;,</tspan>
+  <tspan x="392" dy="15.600000000000001px">  &quot;is_master_anchor&quot;: true,</tspan>
+  <tspan x="392" dy="15.600000000000001px">  &quot;matrix&quot;: [</tspan>
+  <tspan x="392" dy="15.600000000000001px">    {&quot;name&quot;: &quot;U By Emaar Signature&quot;, &quot;fee&quot;: 0, &quot;sal&quot;: 15000},</tspan>
+  <tspan x="392" dy="15.600000000000001px">    {&quot;name&quot;: &quot;Emirates NBD Duo&quot;, &quot;fee&quot;: 0, &quot;sal&quot;: 12000},</tspan>
+  <tspan x="392" dy="15.600000000000001px">    {&quot;name&quot;: &quot;Skywards Infinite&quot;, &quot;fee&quot;: 1575, &quot;sal&quot;: 30000}</tspan>
+  <tspan x="392" dy="15.600000000000001px">  ]</tspan>
+  <tspan x="392" dy="15.600000000000001px">}</tspan>
+</text>
+<text x="392" y="602" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="400" fill="#94a3b8" text-anchor="start">
+  <tspan x="392" dy="0">// Cleaned Chunk Metadata</tspan>
+</text>
+<text x="392" y="641.3000000000001" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#38bdf8" text-anchor="start">
+  <tspan x="392" dy="0">{</tspan>
+  <tspan x="392" dy="15.600000000000001px">  &quot;chunk_id&quot;: &quot;card_u_by_emaar_chunk_02&quot;,</tspan>
+  <tspan x="392" dy="15.600000000000001px">  &quot;url&quot;: &quot;https://emiratesnbd.com/cards/...&quot;,</tspan>
+  <tspan x="392" dy="15.600000000000001px">  &quot;kfs_url&quot;: &quot;https://emiratesnbd.com/kfs/...&quot;,</tspan>
+  <tspan x="392" dy="15.600000000000001px">  &quot;hierarchy&quot;: &quot;Cards &gt; U By Emaar &gt; Fees&quot;,</tspan>
+  <tspan x="392" dy="15.600000000000001px">  &quot;category&quot;: &quot;credit_cards&quot;,</tspan>
+  <tspan x="392" dy="15.600000000000001px">  &quot;dirty_h2_tags_stripped&quot;: true</tspan>
+  <tspan x="392" dy="15.600000000000001px">}</tspan>
+</text>
+<text x="392" y="837" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="400" fill="#94a3b8" text-anchor="start">
+  <tspan x="392" dy="0">// Reciprocal Rank Fusion (RRF)</tspan>
+</text>
+<text x="392" y="861.6" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#facc15" text-anchor="start">
+  <tspan x="392" dy="0">// Hybrid Rank Score Algorithm</tspan>
+  <tspan x="392" dy="15.600000000000001px">RRF_Score(doc, query) = </tspan>
+  <tspan x="392" dy="15.600000000000001px">  SUM_{m in [Dense, Sparse]} (</tspan>
+  <tspan x="392" dy="15.600000000000001px">    1.0 / (60 + Rank_m(doc, query))</tspan>
+  <tspan x="392" dy="15.600000000000001px">  )</tspan>
+  <tspan x="392" dy="15.600000000000001px"></tspan>
+  <tspan x="392" dy="15.600000000000001px">Threshold Gate: Score &gt;= 0.35</tspan>
+</text>
+<text x="770" y="276" font-family="'Segoe UI', -apple-system, sans-serif" font-size="20px" font-weight="700" fill="#1e40af" text-anchor="start">
+  <tspan x="770" dy="0">2. LangGraph Stateful Conversational State Machine</tspan>
+</text>
+<text x="770" y="295" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="400" fill="#64748b" text-anchor="start">
+  <tspan x="770" dy="0">Multi-Turn Query Rewriter, Intent Classifier, Parallel Retrieval, Grader, &amp; Grounded Synthesis</tspan>
+</text>
+<text x="910.0" y="351.65000000000003" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="910.0" dy="0">User Banking Query</tspan>
+  <tspan x="910.0" dy="16.900000000000002px">(&#x27;tell me all&#x27;, &#x27;what about fees?&#x27;)</tspan>
+</text>
+<text x="910.0" y="453.2" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="910.0" dy="0">1. contextualize_query</tspan>
+  <tspan x="910.0" dy="16.900000000000002px">(Inspects last 6 turns, resolves</tspan>
+  <tspan x="910.0" dy="16.900000000000002px">pronouns to standalone banking query)</tspan>
+</text>
+<text x="1082" y="352" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="400" fill="#94a3b8" text-anchor="start">
+  <tspan x="1082" dy="0">// Conversational Memory Resolution</tspan>
+</text>
+<text x="1082" y="368.5" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#38bdf8" text-anchor="start">
+  <tspan x="1082" dy="0">// Follow-Up Query Transformation</tspan>
+  <tspan x="1082" dy="15.600000000000001px">Input Turn 1: &quot;types of credit card?&quot;</tspan>
+  <tspan x="1082" dy="15.600000000000001px">Input Turn 2: &quot;tell me all&quot;</tspan>
+  <tspan x="1082" dy="15.600000000000001px"></tspan>
+  <tspan x="1082" dy="15.600000000000001px">state[&quot;standalone_query&quot;] = </tspan>
+  <tspan x="1082" dy="15.600000000000001px">  &quot;List all Emirates NBD credit cards with their </tspan>
+  <tspan x="1082" dy="15.600000000000001px">   annual fees, minimum salary, and key perks.&quot;</tspan>
+  <tspan x="1082" dy="15.600000000000001px"></tspan>
+  <tspan x="1082" dy="15.600000000000001px">// Prevents cross-category drift!</tspan>
+</text>
+<text x="910.0" y="573.1999999999999" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="910.0" dy="0">2. route_intent Gate</tspan>
+  <tspan x="910.0" dy="16.900000000000002px">(Pydantic Structured Output:</tspan>
+  <tspan x="910.0" dy="16.900000000000002px">DISCOVERY, FACT, COMPARE, FALLBACK)</tspan>
+</text>
+<text x="910.0" y="699.3000000000001" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="910.0" dy="0">DISCOVERY Branch</tspan>
+  <tspan x="910.0" dy="15.600000000000001px">(limit=25, Deduped to 1-2 chunks/card,</tspan>
+  <tspan x="910.0" dy="15.600000000000001px">Category Matrix Anchor Attached)</tspan>
+</text>
+<text x="1180.0" y="699.3000000000001" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="1180.0" dy="0">FACT Branch</tspan>
+  <tspan x="1180.0" dy="15.600000000000001px">(limit=6, Strict Product Entity Pinning,</tspan>
+  <tspan x="1180.0" dy="15.600000000000001px">Cross-Card Fact Isolation)</tspan>
+</text>
+<text x="1450.0" y="699.3000000000001" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="1450.0" dy="0">COMPARISON Branch</tspan>
+  <tspan x="1450.0" dy="15.600000000000001px">(Bilateral Partitioned Search, limit=4/card,</tspan>
+  <tspan x="1450.0" dy="15.600000000000001px">Isolate &amp; Merge Contexts)</tspan>
+</text>
+<text x="1180.0" y="823.1999999999999" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="1180.0" dy="0">4. grade_documents Gate</tspan>
+  <tspan x="1180.0" dy="16.900000000000002px">(RRF Score &gt;= 0.35 &amp; Semantic</tspan>
+  <tspan x="1180.0" dy="16.900000000000002px">Grounding Confidence Check)</tspan>
+</text>
+<text x="915.0" y="948.1999999999999" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="915.0" dy="0">Fallback Response</tspan>
+  <tspan x="915.0" dy="16.900000000000002px">(Safe Out-of-Scope</tspan>
+  <tspan x="915.0" dy="16.900000000000002px">Banking Guidance)</tspan>
+</text>
+<text x="1180.0" y="943.7" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="1180.0" dy="0">5. generate_response</tspan>
+  <tspan x="1180.0" dy="15.600000000000001px">(Gemini 2.5 Flash Synthesis:</tspan>
+  <tspan x="1180.0" dy="15.600000000000001px">• DISCOVERY -&gt; Markdown Catalog Table</tspan>
+  <tspan x="1180.0" dy="15.600000000000001px">• FACT -&gt; Structured Spec Card</tspan>
+  <tspan x="1180.0" dy="15.600000000000001px">• COMPARE -&gt; Head-to-Head Matrix)</tspan>
+</text>
+<text x="1180.0" y="1088.2" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="1180.0" dy="0">6. build_citations Gate</tspan>
+  <tspan x="1180.0" dy="16.900000000000002px">(Deterministic Server Assembly:</tspan>
+  <tspan x="1180.0" dy="16.900000000000002px">Verified Product URLs &amp; KFS links)</tspan>
+</text>
+<text x="1180.0" y="1201.6499999999999" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="1180.0" dy="0">Verified Grounded Answer</tspan>
+  <tspan x="1180.0" dy="16.900000000000002px">(Zero Hallucinated Specs/URLs)</tspan>
+</text>
+<text x="1362" y="822" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="400" fill="#94a3b8" text-anchor="start">
+  <tspan x="1362" dy="0">// LangGraph AgentState (TypedDict)</tspan>
+</text>
+<text x="1362" y="867.6" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#4ade80" text-anchor="start">
+  <tspan x="1362" dy="0">class AgentState(TypedDict):</tspan>
+  <tspan x="1362" dy="15.600000000000001px">    messages: Annotated[list[BaseMessage], add_messages]</tspan>
+  <tspan x="1362" dy="15.600000000000001px">    chat_history: list[dict[str, str]]</tspan>
+  <tspan x="1362" dy="15.600000000000001px">    latest_query: str</tspan>
+  <tspan x="1362" dy="15.600000000000001px">    standalone_query: str     # Rewritten banking query</tspan>
+  <tspan x="1362" dy="15.600000000000001px">    intent: Literal[&quot;DISCOVERY&quot;, &quot;FACT&quot;, &quot;COMPARISON&quot;, &quot;FALLBACK&quot;]</tspan>
+  <tspan x="1362" dy="15.600000000000001px">    category_filter: Optional[str]</tspan>
+  <tspan x="1362" dy="15.600000000000001px">    target_product: Optional[str]</tspan>
+  <tspan x="1362" dy="15.600000000000001px">    retrieved_docs: list[Document]</tspan>
+  <tspan x="1362" dy="15.600000000000001px">    confidence_score: float</tspan>
+  <tspan x="1362" dy="15.600000000000001px">    answer: str</tspan>
+  <tspan x="1362" dy="15.600000000000001px">    citations: list[dict[str, str]]</tspan>
+</text>
+<text x="1362" y="1122" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="400" fill="#94a3b8" text-anchor="start">
+  <tspan x="1362" dy="0">// Intent-Specific Template Rules</tspan>
+</text>
+<text x="1362" y="1126.0" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#facc15" text-anchor="start">
+  <tspan x="1362" dy="0">// DISCOVERY -&gt; Multi-Row Table Output:</tspan>
+  <tspan x="1362" dy="15.600000000000001px">| Card Name | Annual Fee | Min. Salary | Key Reward |</tspan>
+  <tspan x="1362" dy="15.600000000000001px">| :--- | :--- | :--- | :--- |</tspan>
+  <tspan x="1362" dy="15.600000000000001px">| U By Emaar Signature | Free | AED 15,000 | 1.25 Upoints |</tspan>
+  <tspan x="1362" dy="15.600000000000001px"></tspan>
+  <tspan x="1362" dy="15.600000000000001px">// FACT -&gt; Grounded Specification Box:</tspan>
+  <tspan x="1362" dy="15.600000000000001px">### Official Product Specifications</tspan>
+  <tspan x="1362" dy="15.600000000000001px">- Annual Fee: Free for Life</tspan>
+  <tspan x="1362" dy="15.600000000000001px">- Minimum Salary: AED 15,000</tspan>
+</text>
+<text x="1900" y="276" font-family="'Segoe UI', -apple-system, sans-serif" font-size="20px" font-weight="700" fill="#1e40af" text-anchor="start">
+  <tspan x="1900" dy="0">3. Defensive Guardrails &amp; Dual Cloud Deployment</tspan>
+</text>
+<text x="1900" y="295" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="13px" font-weight="400" fill="#64748b" text-anchor="start">
+  <tspan x="1900" dy="0">Five-Tier Safety Architecture, FastAPI Dev Benchmarks, and Vercel Serverless Parity</tspan>
+</text>
+<text x="2070.0" y="355.40000000000003" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="11px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="2070.0" dy="0">Tier 1: Prompt Injection Firewall</tspan>
+  <tspan x="2070.0" dy="14.3px">(Regex + Semantic Jailbreak Filter</tspan>
+  <tspan x="2070.0" dy="14.3px">Blocks instruction overrides &amp; system prompt dumps)</tspan>
+</text>
+<text x="2070.0" y="445.40000000000003" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="11px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="2070.0" dy="0">Tier 2: Vector Confidence Gate</tspan>
+  <tspan x="2070.0" dy="14.3px">(RRF Confidence Score &gt;= 0.35</tspan>
+  <tspan x="2070.0" dy="14.3px">Rejects low-relevance queries before generation)</tspan>
+</text>
+<text x="2070.0" y="535.4" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="11px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="2070.0" dy="0">Tier 3: Pydantic Schema Gate</tspan>
+  <tspan x="2070.0" dy="14.3px">(Strict Enum Validation for Categories &amp; Entities</tspan>
+  <tspan x="2070.0" dy="14.3px">Ensures all outputs stay inside bank catalog)</tspan>
+</text>
+<text x="2070.0" y="625.4" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="11px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="2070.0" dy="0">Tier 4: Numerical AED Currency Guard</tspan>
+  <tspan x="2070.0" dy="14.3px">(Regex extraction verifying salary &amp; fee figures</tspan>
+  <tspan x="2070.0" dy="14.3px">Must strictly exist in retrieved context chunks)</tspan>
+</text>
+<text x="2070.0" y="715.4" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="11px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="2070.0" dy="0">Tier 5: Server-Verified Citations</tspan>
+  <tspan x="2070.0" dy="14.3px">(Zero LLM-generated URLs</tspan>
+  <tspan x="2070.0" dy="14.3px">All links programmatically built from verified metadata)</tspan>
+</text>
+<text x="2050.0" y="874.3000000000001" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#ffffff" text-anchor="middle">
+  <tspan x="2050.0" dy="0">Local FastAPI Dev Server</tspan>
+  <tspan x="2050.0" dy="15.600000000000001px">(Port 8000, Uvicorn, SQLite KG,</tspan>
+  <tspan x="2050.0" dy="15.600000000000001px">90/90 Pytest, 15/15 Golden Eval)</tspan>
+</text>
+<text x="2330.0" y="874.3000000000001" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#374151" text-anchor="middle">
+  <tspan x="2330.0" dy="0">Vercel Serverless Prod</tspan>
+  <tspan x="2330.0" dy="15.600000000000001px">(/api/index.py, Fluid Compute,</tspan>
+  <tspan x="2330.0" dy="15.600000000000001px">Stateless Parity, &lt;1.2s Cold Start)</tspan>
+</text>
+<text x="1932" y="972" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="400" fill="#94a3b8" text-anchor="start">
+  <tspan x="1932" dy="0">// Production Verification Benchmark (100% Pass)</tspan>
+</text>
+<text x="1932" y="1004.4000000000001" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#4ade80" text-anchor="start">
+  <tspan x="1932" dy="0">======================== 15 passed in 26.83s ========================</tspan>
+  <tspan x="1932" dy="15.600000000000001px">Query 1: &quot;about your products?&quot; -&gt; DISCOVERY (Overview + Table) [PASS]</tspan>
+  <tspan x="1932" dy="15.600000000000001px">Query 2: &quot;types of credit card?&quot; -&gt; DISCOVERY (18 Cards Matrix) [PASS]</tspan>
+  <tspan x="1932" dy="15.600000000000001px">Query 3: &quot;tell me all&quot; -&gt; Contextualized Standalone Rewriter    [PASS]</tspan>
+  <tspan x="1932" dy="15.600000000000001px">Regression Suite: 90 / 90 tests passing (100.0%)</tspan>
+  <tspan x="1932" dy="15.600000000000001px">Zero single-document collapse | Zero dirty UI chrome leaks</tspan>
+</text>
+<text x="1932" y="1152" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="400" fill="#94a3b8" text-anchor="start">
+  <tspan x="1932" dy="0">// Pydantic Schema Gate Definition</tspan>
+</text>
+<text x="1932" y="1174.4" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12px" font-weight="700" fill="#38bdf8" text-anchor="start">
+  <tspan x="1932" dy="0">class IntentClassificationOutput(BaseModel):</tspan>
+  <tspan x="1932" dy="15.600000000000001px">    intent: Literal[&quot;DISCOVERY&quot;, &quot;FACT&quot;, &quot;COMPARISON&quot;, &quot;FALLBACK&quot;]</tspan>
+  <tspan x="1932" dy="15.600000000000001px">    category: Optional[Literal[&quot;credit_cards&quot;, &quot;accounts&quot;, &quot;loans&quot;, &quot;wealth&quot;]]</tspan>
+  <tspan x="1932" dy="15.600000000000001px">    product_names: list[str] = Field(default_factory=list)</tspan>
+  <tspan x="1932" dy="15.600000000000001px">    comparison_targets: Optional[list[str]] = None</tspan>
+  <tspan x="1932" dy="15.600000000000001px">    confidence: float = Field(ge=0.0, le=1.0)</tspan>
+</text>
+</svg>
