@@ -31,3 +31,17 @@ htmlcov/
 
 # Local Qdrant Storage
 qdrant_data/
+
+# Internal Development & Planning Files (Not deployed to production)
+agent.md
+PRD.md
+design.md
+phases.md
+memory.md
+rules.md
+architecture.md
+
+# Temporary Diagram Build Artifacts
+docs/architecture_workflow.*
+docs/render_architecture_excalidraw.html
+docs/excalidraw_system_architecture.html
