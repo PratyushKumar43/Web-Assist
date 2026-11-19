@@ -4,7 +4,7 @@
 [![Benchmark Evaluation](https://img.shields.io/badge/golden%20eval-15%2F15%20(100%25)-blue)](data/eval_report.md)
 [![License](https://img.shields.io/badge/license-MIT-gray)](LICENSE)
 
-Web-Assist is a production-grade, highly defensible Retrieval-Augmented Generation (RAG) conversational chatbot engineered for enterprise websites. Built with **FastAPI**, **LangGraph**, **Qdrant Cloud Hybrid Search**, and **Google Gemini / xAI Grok**, it provides grounded answers strictly derived from crawled website content with server-constructed citations and zero hallucinated financial figures.
+Web-Assist is a production-grade, highly defensible Retrieval-Augmented Generation (RAG) conversational chatbot engineered for enterprise websites. Built with **FastAPI**, **LangGraph**, **Qdrant Cloud Hybrid Search**, and **xAI Grok** (`grok-2-latest`), it provides grounded answers strictly derived from crawled website content with server-constructed citations and zero hallucinated financial figures.
 
 ---
 
@@ -30,9 +30,9 @@ In accordance with engineering standards and transparency guidelines:
    - Dual vectors: FastEmbed dense (`BAAI/bge-small-en-v1.5`, 384 dims) and sparse (`Qdrant/bm25`).
    - Native Qdrant Reciprocal Rank Fusion (RRF) for balanced semantic and keyword recall.
    - Synthetic catalog overview chunks (`app/catalog_chunks.py`) providing high-signal anchors for broad discovery inquiries.
-4. **Multi-Provider LLM & Resilient Grounded Generation**:
-   - Flexible cascading generation pipeline: OpenRouter -> xAI Grok (`grok-2-latest`) -> Google Gemini Flash -> Offline Deterministic Grounded Synthesis.
-   - Guarantees 100% uptime with zero hallucinated figures even during provider rate limits or complete network outages.
+4. **xAI Grok Engine & Resilient Grounded Generation**:
+   - **Primary Model**: Powered by **xAI Grok** (`grok-2-latest`) via native xAI API and OpenRouter for deep reasoning, zero-hallucination compliance, and sub-second token latency.
+   - **Cascading Fallback**: Automatic failover (xAI Grok -> OpenRouter -> Offline Deterministic Grounded Synthesis) guaranteeing 100% uptime with zero hallucinated figures even during provider rate limits or complete network outages.
 5. **Stateless Serverless Parity (Zero SQLite on Vercel)**:
    - Chunk text, section breadcrumbs, and citation metadata reside directly in Qdrant vector payloads.
    - Catalog discovery runs from precompiled `data/products_catalog.json` for 100% serverless Vercel compatibility.
@@ -92,13 +92,14 @@ Key configuration variables in `.env`:
 SITE_URL=https://www.emiratesnbd.com/en
 CRAWL_RATE_LIMIT=1.0
 
-# LLM Providers (Cascading fallback: OpenRouter -> xAI -> Gemini -> Deterministic)
-OPENROUTER_API_KEY=your_openrouter_api_key
-OPENROUTER_MODEL=anthropic/claude-3.5-haiku
-XAI_API_KEY=your_xai_api_key
+# Primary LLM Engine (xAI Grok)
+XAI_API_KEY=your_xai_api_key_here
 XAI_MODEL=grok-2-latest
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-2.0-flash
+XAI_BASE_URL=https://api.x.ai/v1
+
+# Optional Fallback Providers
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=x-ai/grok-2
 
 # Scrapers
 FIRECRAWL_API_KEY=your_firecrawl_api_key
@@ -199,7 +200,8 @@ Web-Assist/
 2. In the Vercel Dashboard, set the Environment Variables:
    - `QDRANT_URL`
    - `QDRANT_API_KEY`
-   - `GEMINI_API_KEY`
+   - `XAI_API_KEY`
+   - `XAI_MODEL`
 3. Deploy directly via the Vercel CLI:
    ```bash
    vercel --prod
